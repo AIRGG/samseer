@@ -572,7 +572,7 @@ Replace the `dispatch` method so `log` is handled without requiring `cid`:
   }
 ```
 
-In `_onRequest`, record the URL for later bridging — add after `_ids[cid] = id;`:
+In `_onRequest`, record the URL for later bridging. Only insert this one line: since v0.5.0 `_onRequest`/`_onResponse` decode bodies via `_decodeEventBody` and must not be rewritten. Add after `_ids[cid] = id;`:
 
 ```dart
     _urls[cid] = urlString;
@@ -874,17 +874,18 @@ Expected: FAIL — script does not yet contain `kind: 'log'`, `safeStringify`, e
 
 - [ ] **Step 3: Insert the console/serializer JS**
 
-In `lib/src/feature/webview_inspector.dart`, locate the end of the `bodyToString` helper inside the script (the lines):
+In `lib/src/feature/webview_inspector.dart`, locate the end of the `requestBodyPayload` helper inside the script (since v0.5.0 the old `bodyToString` helper is gone; the script now has `isBinaryContentType`, `arrayBufferToBase64` and `requestBodyPayload`). Its tail looks like:
 
 ```js
-  function bodyToString(body) {
-    if (body == null) return null;
-    if (typeof body === 'string') return body;
-    try { return String(body); } catch (_) { return null; }
+    try {
+      return { body: String(body) };
+    } catch (_) {
+      return { body: null };
+    }
   }
 ```
 
-Immediately AFTER that closing `}` and BEFORE the `// --- XMLHttpRequest ---` comment, insert:
+Immediately AFTER that closing `}` and BEFORE the `// --- XMLHttpRequest ---` comment, insert (the script is a raw `r'''` string, so `$` needs no escaping):
 
 ```js
   function safeStringify(value) {
@@ -1834,21 +1835,21 @@ Add the matching JS functions inside the existing `<script>` block (after `doFet
 In `README.md`, add a bullet to the Features list (after the WebView traffic bullet):
 
 ```markdown
-- 🖥️ **Console capture** — WebView `console.*` + JS errors, and your Flutter app's `print`/`debugPrint`/uncaught errors, in one filterable Console tab (objects render as readable JSON, not `[object Object]`)
+- 🖥️ **Console capture**: WebView `console.*` and JS errors, plus your Flutter app's `print`/`debugPrint`/uncaught errors, in one filterable Console tab (objects render as readable JSON, not `[object Object]`)
 ```
 
-Add a Console section under the WebView integration section:
+Add a Console section at the end of the `## 🌐 WebView inspector (optional)` section (before the next `## ` heading):
 
 ```markdown
 ### Console (App + WebView)
 
 Samseer has a **Console** tab (bottom nav, next to Network) that collects:
 
-- **WebView** — `console.log/info/warn/error/debug`, uncaught JS errors, and
+- **WebView**: `console.log/info/warn/error/debug`, uncaught JS errors, and
   unhandled promise rejections. **No extra wiring** — it rides the same
   `webViewInterceptorScript` + `samseer_webview` handler you already set up for
   WebView traffic.
-- **App (Dart)** — `print`, `debugPrint`, Flutter framework errors, and uncaught
+- **App (Dart)**: `print`, `debugPrint`, Flutter framework errors, and uncaught
   async errors. Wrap your `runApp` once:
 
   ```dart
@@ -1863,26 +1864,28 @@ arrays are rendered as readable JSON instead of `[object Object]`.
 
 - [ ] **Step 4: Update CHANGELOG and version**
 
-In `pubspec.yaml`, change:
+`0.5.0` is already taken on master (content-type-aware body handling), so this feature ships as `0.6.0`.
+
+In `pubspec.yaml`, change `version: 0.5.0` to:
 
 ```yaml
-version: 0.5.0
+version: 0.6.0
 ```
 
-In `CHANGELOG.md`, add a new top entry:
+In `CHANGELOG.md`, add a new top entry above `## 0.5.0`, in the same `* New:` bullet style master uses:
 
 ```markdown
-## 0.5.0
+## 0.6.0
 
-- feat: unified **Console** tab capturing WebView `console.*` + JS errors and
-  Flutter-app `print`/`debugPrint`/uncaught errors, with level and source filter
-  capsules and a detail view.
-- feat: `Samseer.captureLogs(() => runApp(...))` to capture Dart-side logs.
-- feat: WebView network errors are surfaced into the Console (configurable via
+* New: unified **Console** tab capturing WebView `console.*` and JS errors
+  plus Flutter-app `print`/`debugPrint`/uncaught errors, with level and source
+  filter capsules and a detail view.
+* New: `Samseer.captureLogs(() => runApp(...))` to capture Dart-side logs.
+* New: WebView network errors are surfaced into the Console (configurable via
   `SamseerConfiguration.captureNetworkErrorsInConsole`).
-- feat: readable console serialization — objects/arrays render as JSON instead
+* New: readable console serialization: objects/arrays render as JSON instead
   of `[object Object]`.
-- chore: `SamseerConfiguration.maxConsoleLogsCount` (default 500).
+* New: `SamseerConfiguration.maxConsoleLogsCount` (default 500).
 ```
 
 - [ ] **Step 5: Verify the package and example build**
@@ -1906,7 +1909,7 @@ Run the example on a device/emulator. Verify:
 ```bash
 cd /Users/airlangga/Documents/sandbox/samseer
 git add example/lib/main.dart example/lib/samseer_webview_demo_page.dart README.md CHANGELOG.md pubspec.yaml
-git commit -m "docs: demo console capture in example, README, changelog; bump to 0.5.0"
+git commit -m "docs: demo console capture in example, README, changelog; bump to 0.6.0"
 ```
 
 ---
@@ -1924,7 +1927,7 @@ git commit -m "docs: demo console capture in example, README, changelog; bump to
 - UI: bottom nav Network/Console with badge, console view, level + source capsules, tile, detail with JsonViewer + stack → Task 5. ✓
 - Public API exports + `consoleLogs`/`consoleStream` getters → Tasks 1–2. ✓
 - Example app updates (required deliverable) → Task 6. ✓
-- README/CHANGELOG/version bump → Task 6. ✓
+- README/CHANGELOG/version bump (0.6.0, since master already shipped 0.5.0) → Task 6. ✓
 
 **Placeholder scan:** No TBD/TODO/"handle edge cases"; every code step shows complete code. ✓
 
