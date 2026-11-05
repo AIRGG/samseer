@@ -20,8 +20,7 @@ void main() {
     test('listens for uncaught errors and rejections', () {
       expect(webViewInterceptorScript.contains("addEventListener('error'"),
           isTrue);
-      expect(
-          webViewInterceptorScript.contains("'unhandledrejection'"), isTrue);
+      expect(webViewInterceptorScript.contains("'unhandledrejection'"), isTrue);
     });
 
     test('includes a circular-safe serializer (no [object Object])', () {

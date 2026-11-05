@@ -8,7 +8,9 @@ import '../theme/samseer_theme.dart';
 import '../widget/call_tile.dart';
 import '../widget/empty_state.dart';
 import '../widget/samseer_toast.dart';
+import '../../model/console_log.dart';
 import 'call_detail_screen.dart';
+import 'console_view.dart';
 import 'stats_screen.dart';
 
 enum _StatusFilter { all, success, redirect, clientError, serverError, errors }
@@ -22,8 +24,7 @@ class CallListScreen extends StatefulWidget {
 }
 
 class _CallListScreenState extends State<CallListScreen> {
-  String _query = '';
-  _StatusFilter _filter = _StatusFilter.all;
+  int _tab = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +35,7 @@ class _CallListScreenState extends State<CallListScreen> {
         textDirection: config.directionality ?? Directionality.of(context),
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('Samseer'),
+            title: Text(_tab == 0 ? 'Samseer' : 'Console'),
             actions: [
               IconButton(
                 tooltip: 'Stats',
@@ -55,81 +56,47 @@ class _CallListScreenState extends State<CallListScreen> {
               ),
             ],
           ),
-          body: Column(
+          body: IndexedStack(
+            index: _tab,
             children: [
-              _SearchBar(onChanged: (v) => setState(() => _query = v)),
-              _FilterRow(
-                selected: _filter,
-                onSelected: (f) => setState(() => _filter = f),
-              ),
-              Expanded(
-                child: StreamBuilder<List<SamseerHttpCall>>(
-                  stream: widget.core.storage.stream,
-                  initialData: widget.core.storage.calls,
-                  builder: (context, snap) {
-                    final calls = _apply(snap.data ?? const []);
-                    if (calls.isEmpty) {
-                      return const EmptyState(
-                        title: 'No HTTP calls yet',
-                        subtitle:
-                            'Make a network request and it will show up here.',
-                        icon: Icons.travel_explore,
-                      );
-                    }
-                    return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-                      itemCount: calls.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) => _AnimatedTile(
-                        key: ValueKey(calls[i].id),
-                        child: CallTile(
-                          call: calls[i],
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => CallDetailScreen(
-                                core: widget.core,
-                                callId: calls[i].id,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              _NetworkView(core: widget.core),
+              ConsoleView(core: widget.core),
             ],
+          ),
+          bottomNavigationBar: StreamBuilder<List<SamseerConsoleLog>>(
+            stream: widget.core.storage.consoleStream,
+            initialData: widget.core.storage.consoleLogs,
+            builder: (context, snap) {
+              final count = (snap.data ?? const []).length;
+              return NavigationBar(
+                selectedIndex: _tab,
+                onDestinationSelected: (i) => setState(() => _tab = i),
+                destinations: [
+                  const NavigationDestination(
+                    icon: Icon(Icons.travel_explore_outlined),
+                    selectedIcon: Icon(Icons.travel_explore),
+                    label: 'Network',
+                  ),
+                  NavigationDestination(
+                    icon: Badge.count(
+                      count: count,
+                      isLabelVisible: count > 0,
+                      child: const Icon(Icons.terminal_outlined),
+                    ),
+                    selectedIcon: Badge.count(
+                      count: count,
+                      isLabelVisible: count > 0,
+                      child: const Icon(Icons.terminal),
+                    ),
+                    label: 'Console',
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
-  }
-
-  List<SamseerHttpCall> _apply(List<SamseerHttpCall> input) {
-    var result = input;
-    final q = _query.trim().toLowerCase();
-    if (q.isNotEmpty) {
-      result = result.where((c) {
-        return c.uri.toLowerCase().contains(q) ||
-            c.endpoint.toLowerCase().contains(q) ||
-            c.method.toLowerCase().contains(q) ||
-            (c.status?.toString().contains(q) ?? false);
-      }).toList();
-    }
-    result = result
-        .where((c) => switch (_filter) {
-              _StatusFilter.all => true,
-              _StatusFilter.success => c.state == SamseerCallState.success,
-              _StatusFilter.redirect => c.state == SamseerCallState.redirect,
-              _StatusFilter.clientError =>
-                c.state == SamseerCallState.clientError,
-              _StatusFilter.serverError =>
-                c.state == SamseerCallState.serverError,
-              _StatusFilter.errors =>
-                c.state == SamseerCallState.error || c.hasError,
-            })
-        .toList();
-    return result;
   }
 
   Future<void> _onMenu(String value) async {
@@ -162,6 +129,94 @@ class _CallListScreenState extends State<CallListScreen> {
       case 'clear':
         widget.core.storage.clear();
     }
+  }
+}
+
+class _NetworkView extends StatefulWidget {
+  const _NetworkView({required this.core});
+  final SamseerCore core;
+
+  @override
+  State<_NetworkView> createState() => _NetworkViewState();
+}
+
+class _NetworkViewState extends State<_NetworkView> {
+  String _query = '';
+  _StatusFilter _filter = _StatusFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _SearchBar(onChanged: (v) => setState(() => _query = v)),
+        _FilterRow(
+          selected: _filter,
+          onSelected: (f) => setState(() => _filter = f),
+        ),
+        Expanded(
+          child: StreamBuilder<List<SamseerHttpCall>>(
+            stream: widget.core.storage.stream,
+            initialData: widget.core.storage.calls,
+            builder: (context, snap) {
+              final calls = _apply(snap.data ?? const []);
+              if (calls.isEmpty) {
+                return const EmptyState(
+                  title: 'No HTTP calls yet',
+                  subtitle: 'Make a network request and it will show up here.',
+                  icon: Icons.travel_explore,
+                );
+              }
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                itemCount: calls.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) => _AnimatedTile(
+                  key: ValueKey(calls[i].id),
+                  child: CallTile(
+                    call: calls[i],
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => CallDetailScreen(
+                          core: widget.core,
+                          callId: calls[i].id,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<SamseerHttpCall> _apply(List<SamseerHttpCall> input) {
+    var result = input;
+    final q = _query.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      result = result.where((c) {
+        return c.uri.toLowerCase().contains(q) ||
+            c.endpoint.toLowerCase().contains(q) ||
+            c.method.toLowerCase().contains(q) ||
+            (c.status?.toString().contains(q) ?? false);
+      }).toList();
+    }
+    result = result
+        .where((c) => switch (_filter) {
+              _StatusFilter.all => true,
+              _StatusFilter.success => c.state == SamseerCallState.success,
+              _StatusFilter.redirect => c.state == SamseerCallState.redirect,
+              _StatusFilter.clientError =>
+                c.state == SamseerCallState.clientError,
+              _StatusFilter.serverError =>
+                c.state == SamseerCallState.serverError,
+              _StatusFilter.errors =>
+                c.state == SamseerCallState.error || c.hasError,
+            })
+        .toList();
+    return result;
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../model/console_log.dart';
 import '../../model/http_call.dart';
 
 /// Brand & semantic colors for Samseer UI.
@@ -29,6 +30,21 @@ class SamseerColors {
         return loading;
       case SamseerCallState.error:
         return generalError;
+    }
+  }
+
+  static Color forLogLevel(SamseerLogLevel level) {
+    switch (level) {
+      case SamseerLogLevel.error:
+        return serverError;
+      case SamseerLogLevel.warn:
+        return clientError;
+      case SamseerLogLevel.info:
+        return redirect;
+      case SamseerLogLevel.debug:
+        return loading;
+      case SamseerLogLevel.log:
+        return loading;
     }
   }
 }

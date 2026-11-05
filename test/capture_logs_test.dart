@@ -9,6 +9,7 @@ void main() {
       configuration: const SamseerConfiguration(showInspectorOnShake: false),
     );
     samseer.captureLogs(() {
+      // ignore: avoid_print
       print('hello from app');
     });
     final logs = samseer.consoleLogs;
