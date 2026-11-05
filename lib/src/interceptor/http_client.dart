@@ -1,13 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import '../core/samseer_core.dart';
+import '../model/http_body.dart';
 import '../model/http_call.dart';
 import '../model/http_error.dart';
 import '../model/http_request.dart';
 import '../model/http_response.dart';
+import 'body_decoder.dart';
 
 /// A drop-in replacement for [http.Client] that records every request to the
 /// shared Samseer storage.
@@ -24,7 +25,8 @@ class SamseerHttpClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final id = _core.nextId();
     final uri = request.url;
-    final body = await _captureBody(request);
+    final contentType = request.headers['content-type'];
+    final body = _captureBody(request);
     final call = SamseerHttpCall(
       id: id,
       method: request.method.toUpperCase(),
@@ -39,7 +41,7 @@ class SamseerHttpClient extends http.BaseClient {
         headers: Map<String, dynamic>.from(request.headers),
         queryParameters: Map<String, dynamic>.from(uri.queryParameters),
         body: body,
-        contentType: request.headers['content-type'],
+        contentType: contentType,
         size: request.contentLength,
       ),
     );
@@ -49,7 +51,8 @@ class SamseerHttpClient extends http.BaseClient {
       final response = await _inner.send(request);
       // Buffer the stream so we can both record it and return it to the caller.
       final bytes = await response.stream.toBytes();
-      final decoded = _safeDecode(bytes, response.headers['content-type']);
+      final decoded =
+          samseerDecodeBody(bytes, response.headers['content-type']);
       _core.addResponse(
         id,
         SamseerHttpResponse(
@@ -57,6 +60,7 @@ class SamseerHttpClient extends http.BaseClient {
           time: DateTime.now(),
           headers: Map<String, dynamic>.from(response.headers),
           body: decoded,
+          contentType: response.headers['content-type'],
           size: bytes.length,
         ),
       );
@@ -89,29 +93,25 @@ class SamseerHttpClient extends http.BaseClient {
     super.close();
   }
 
-  Future<dynamic> _captureBody(http.BaseRequest request) async {
+  dynamic _captureBody(http.BaseRequest request) {
     if (request is http.Request) {
-      return request.body;
+      return samseerDecodeBody(
+          request.bodyBytes, request.headers['content-type']);
     }
     if (request is http.MultipartRequest) {
-      return request.fields;
+      return SamseerMultipartBody(
+        fields: Map<String, String>.from(request.fields),
+        files: [
+          for (final f in request.files)
+            SamseerMultipartFilePart(
+              field: f.field,
+              filename: f.filename,
+              contentType: f.contentType.toString(),
+              length: f.length,
+            ),
+        ],
+      );
     }
     return null;
-  }
-
-  static dynamic _safeDecode(List<int> bytes, String? contentType) {
-    try {
-      final text = utf8.decode(bytes);
-      if (contentType != null && contentType.contains('application/json')) {
-        try {
-          return json.decode(text);
-        } catch (_) {
-          return text;
-        }
-      }
-      return text;
-    } catch (_) {
-      return '<${bytes.length} bytes>';
-    }
   }
 }

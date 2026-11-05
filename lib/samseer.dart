@@ -25,6 +25,10 @@ export 'src/feature/webview_inspector.dart' show webViewInterceptorScript;
 export 'src/interceptor/dio_interceptor.dart' show SamseerDioInterceptor;
 export 'src/interceptor/http_client.dart' show SamseerHttpClient;
 export 'src/interceptor/http_overrides.dart' show SamseerHttpOverrides;
+export 'src/model/content_kind.dart'
+    show SamseerBodyKind, classifyContentType, isBinaryBodyKind;
+export 'src/model/http_body.dart'
+    show SamseerBinaryBody, SamseerMultipartBody, SamseerMultipartFilePart;
 export 'src/model/http_call.dart' show SamseerHttpCall, SamseerCallState;
 export 'src/model/http_error.dart' show SamseerHttpError;
 export 'src/model/http_request.dart' show SamseerHttpRequest;
@@ -145,15 +149,19 @@ class Samseer {
     required int status,
     Map<String, dynamic>? headers,
     Object? body,
+    String? contentType,
     int? size,
   }) {
+    final effectiveHeaders = headers ?? const <String, dynamic>{};
     _core.addResponse(
       id,
       SamseerHttpResponse(
         status: status,
         time: DateTime.now(),
-        headers: headers ?? const <String, dynamic>{},
+        headers: effectiveHeaders,
         body: body,
+        contentType:
+            contentType ?? effectiveHeaders['content-type']?.toString(),
         size: size,
       ),
     );

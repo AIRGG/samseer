@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -143,6 +145,132 @@ class Home extends StatelessWidget {
                 );
                 final res = await req.close();
                 await res.drain<void>();
+              },
+            ),
+            _Tile(
+              label: 'POST JSON (request headers/body capture)',
+              onTap: () async {
+                final c = HttpClient();
+                final req =
+                    await c.postUrl(Uri.parse('https://httpbin.org/post'));
+                req.headers.contentType =
+                    ContentType('application', 'json', charset: 'utf-8');
+                req.write('{"hello":"world"}');
+                final res = await req.close();
+                await res.drain<void>();
+              },
+            ),
+          ]),
+          _Section(title: 'Content types', children: [
+            _Tile(
+              label: 'form-urlencoded (Dio POST)',
+              onTap: () => dio.post(
+                'https://httpbin.org/post',
+                data: {'title': 'hello', 'lang': 'dart'},
+                options: Options(contentType: Headers.formUrlEncodedContentType),
+              ),
+            ),
+            _Tile(
+              label: 'multipart/form-data (Dio POST)',
+              onTap: () => dio.post(
+                'https://httpbin.org/post',
+                data: FormData.fromMap({
+                  'title': 'hello',
+                  'avatar': MultipartFile.fromString(
+                    'fake-avatar-bytes',
+                    filename: 'avatar.txt',
+                  ),
+                }),
+              ),
+            ),
+            _Tile(
+              label: 'multipart/form-data (http POST)',
+              onTap: () async {
+                final request = http.MultipartRequest(
+                  'POST',
+                  Uri.parse('https://httpbin.org/post'),
+                )
+                  ..fields['title'] = 'hello'
+                  ..files.add(http.MultipartFile.fromBytes(
+                    'avatar',
+                    utf8.encode('fake-avatar-bytes'),
+                    filename: 'avatar.txt',
+                  ));
+                await httpClient.send(request);
+              },
+            ),
+            _Tile(
+              label: 'text/plain (http GET)',
+              onTap: () =>
+                  httpClient.get(Uri.parse('https://httpbin.org/robots.txt')),
+            ),
+            _Tile(
+              label: 'text/html (http GET)',
+              onTap: () =>
+                  httpClient.get(Uri.parse('https://httpbin.org/html')),
+            ),
+            _Tile(
+              label: 'application/xml (http GET)',
+              onTap: () =>
+                  httpClient.get(Uri.parse('https://httpbin.org/xml')),
+            ),
+            _Tile(
+              label: 'application/octet-stream (http GET)',
+              onTap: () =>
+                  httpClient.get(Uri.parse('https://httpbin.org/bytes/1024')),
+            ),
+            _Tile(
+              label: 'image/png (http GET)',
+              onTap: () =>
+                  httpClient.get(Uri.parse('https://httpbin.org/image/png')),
+            ),
+            _Tile(
+              label: 'image/jpeg (Dio GET, bytes)',
+              onTap: () => dio.get(
+                'https://httpbin.org/image/jpeg',
+                options: Options(responseType: ResponseType.bytes),
+              ),
+            ),
+            _Tile(
+              label: 'application/pdf (manual record)',
+              onTap: () {
+                final id = samseer.recordRequest(
+                  method: 'GET',
+                  uri: 'https://example.com/files/sample.pdf',
+                  client: 'Manual',
+                );
+                final bytes = Uint8List.fromList(utf8.encode(
+                  '%PDF-1.4\n1 0 obj<< /Type /Catalog >>endobj\n'
+                  'trailer<< /Root 1 0 R >>\n%%EOF',
+                ));
+                samseer.recordResponse(
+                  id,
+                  status: 200,
+                  headers: {'content-type': 'application/pdf'},
+                  body: SamseerBinaryBody(
+                    totalSize: bytes.length,
+                    bytes: bytes,
+                    contentType: 'application/pdf',
+                  ),
+                );
+              },
+            ),
+            _Tile(
+              label: 'text/csv (manual record)',
+              onTap: () {
+                final id = samseer.recordRequest(
+                  method: 'GET',
+                  uri: 'https://example.com/files/sample.csv',
+                  client: 'Manual',
+                );
+                samseer.recordResponse(
+                  id,
+                  status: 200,
+                  headers: {'content-type': 'text/csv'},
+                  body: 'name,age,city\n'
+                      'Ada Lovelace,36,London\n'
+                      'Alan Turing,41,Manchester\n',
+                );
               },
             ),
           ]),

@@ -143,7 +143,10 @@ void main() {
 
       call = samseer.calls.first;
       expect(call.response?.status, 200);
-      expect(call.response?.body, '[]');
+      // application/json responses are now parsed (previously left as the
+      // raw '[]' string) so JSON bodies get the same tree/curl/copy
+      // treatment across every transport, including the WebView bridge.
+      expect(call.response?.body, <dynamic>[]);
       expect(call.state, SamseerCallState.success);
 
       // Late events for the same cid are ignored (id mapping cleared).

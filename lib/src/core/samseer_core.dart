@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../feature/shake_detector.dart';
 import '../model/http_call.dart';
 import '../model/http_error.dart';
+import '../model/http_request.dart';
 import '../model/http_response.dart';
 import '../ui/screen/call_list_screen.dart';
 import 'samseer_configuration.dart';
@@ -40,6 +41,9 @@ class SamseerCore {
   int nextId() => ++_idSeed;
 
   void addCall(SamseerHttpCall call) => storage.addCall(call);
+
+  void updateRequest(int id, SamseerHttpRequest request) =>
+      storage.updateRequest(id, request);
 
   void addResponse(int id, SamseerHttpResponse response) =>
       storage.updateResponse(id, response);

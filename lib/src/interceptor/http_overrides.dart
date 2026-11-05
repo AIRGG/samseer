@@ -7,6 +7,7 @@ import '../model/http_call.dart';
 import '../model/http_error.dart';
 import '../model/http_request.dart';
 import '../model/http_response.dart';
+import 'body_decoder.dart';
 
 /// [HttpOverrides] that intercepts every [HttpClient] created in the app and
 /// records traffic to the shared Samseer storage.
@@ -225,6 +226,7 @@ class _RecordingHttpClientRequest implements HttpClientRequest {
   @override
   Future<HttpClientResponse> close() async {
     try {
+      _recordRequest();
       final response = await _inner.close();
       final bytes = <int>[];
       final stream = response.transform<List<int>>(
@@ -234,8 +236,8 @@ class _RecordingHttpClientRequest implements HttpClientRequest {
             sink.add(data);
           },
           handleDone: (sink) {
-            final body =
-                _safeDecode(bytes, response.headers.contentType?.toString());
+            final contentType = response.headers.contentType?.toString();
+            final body = samseerDecodeBody(bytes, contentType);
             _core.addResponse(
               _id,
               SamseerHttpResponse(
@@ -243,6 +245,7 @@ class _RecordingHttpClientRequest implements HttpClientRequest {
                 time: DateTime.now(),
                 headers: _readHeaders(response.headers),
                 body: body,
+                contentType: contentType,
                 size: bytes.length,
               ),
             );
@@ -259,6 +262,30 @@ class _RecordingHttpClientRequest implements HttpClientRequest {
       );
       rethrow;
     }
+  }
+
+  /// [HttpClientRequest.headers] are only fully populated by the caller
+  /// after [open]/[openUrl] returns (via `request.headers.add(...)`), and the
+  /// body is streamed via [add]/[write] — so both are only knowable here, at
+  /// [close] time. Patches the call recorded in [_wrap] with the real
+  /// headers/body/content-type/size.
+  void _recordRequest() {
+    final existing = _core.storage.findById(_id);
+    if (existing == null) return;
+    final headers = _readHeaders(_inner.headers);
+    final contentType = _inner.headers.contentType?.toString() ??
+        headers['content-type']?.toString();
+    final body =
+        _bodyBuffer.isEmpty ? null : samseerDecodeBody(_bodyBuffer, contentType);
+    _core.updateRequest(
+      _id,
+      existing.request.copyWith(
+        headers: headers,
+        body: body,
+        contentType: contentType,
+        size: _bodyBuffer.isEmpty ? null : _bodyBuffer.length,
+      ),
+    );
   }
 
   @override
@@ -395,20 +422,4 @@ Map<String, dynamic> _readHeaders(HttpHeaders headers) {
     map[name] = values.length == 1 ? values.first : values;
   });
   return map;
-}
-
-dynamic _safeDecode(List<int> bytes, String? contentType) {
-  try {
-    final text = utf8.decode(bytes);
-    if (contentType != null && contentType.contains('application/json')) {
-      try {
-        return json.decode(text);
-      } catch (_) {
-        return text;
-      }
-    }
-    return text;
-  } catch (_) {
-    return '<${bytes.length} bytes>';
-  }
 }

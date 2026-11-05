@@ -31,7 +31,7 @@ If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github
 - 🌐 **WebView traffic too** — drop-in JS interceptor for XHR/`fetch` inside `flutter_inappwebview`, no extra dep on Samseer's side
 - 🔍 **Powerful call list** with live search, status & method filters
 - 📑 **Tabbed call detail** — Overview · Request · Response · cURL
-- 🌈 **Syntax-highlighted JSON viewer** built in
+- 🌈 **Content-type-aware body viewer** — syntax-highlighted JSON tree, form-urlencoded & multipart fields tables, pretty-printed XML, CSV grid, and image/PDF/binary previews with a Copy-as-Base64 action
 - 📊 **Stats screen** — totals, success rate, avg duration, status distribution
 - 📱 **Shake-to-open** the inspector from anywhere in your app
 - 💬 **Floating bubble overlay** with live call count (draggable)
@@ -344,6 +344,33 @@ flutter run
 ```
 
 Tap any of the buttons to fire requests — they'll appear in the inspector live.
+
+The **Content types** section is dedicated to exercising the body viewer/exporter
+against every content type Samseer handles specially:
+
+| Content type | Tile |
+| --- | --- |
+| `application/json` | Dio/`http` GET & POST tiles (all sections) |
+| `application/x-www-form-urlencoded` | "form-urlencoded (Dio POST)" |
+| `multipart/form-data` | "multipart/form-data (Dio POST)" / "(http POST)" |
+| `text/plain` | "text/plain (http GET)" |
+| `text/html` | "text/html (http GET)" |
+| `application/xml` | "application/xml (http GET)" |
+| `text/csv` | "text/csv (manual record)" |
+| `application/octet-stream` | "application/octet-stream (http GET)" |
+| `image/png` / `image/jpeg` | "image/png (http GET)" / "image/jpeg (Dio GET, bytes)" |
+| `application/pdf` | "application/pdf (manual record)" |
+
+`application/pdf` and `text/csv` are recorded manually via
+`samseer.recordRequest`/`recordResponse` (no public test server serves them
+reliably) — which doubles as a working example of wiring a custom transport
+(GraphQL, gRPC, …) into the inspector. Everything else round-trips through
+[httpbin.org](https://httpbin.org), a public HTTP testing sandbox, so you're
+exercising the real Dio/`http`/`HttpClient` interceptor code paths, not just
+the UI. The `dart:io HttpClient` section also has a dedicated "POST JSON
+(request headers/body capture)" tile — that transport used to silently drop
+the request headers and body entirely, so it's worth checking that its
+Request tab is populated.
 
 ---
 

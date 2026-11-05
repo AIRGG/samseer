@@ -1,3 +1,45 @@
+## 0.5.0
+
+* New: full content-type-aware body handling across every transport (Dio,
+  `http`, `dart:io HttpClient`, WebView) — `application/json`,
+  `multipart/form-data`, `application/x-www-form-urlencoded`, `text/plain`,
+  `text/html`, `application/xml`, `application/octet-stream`,
+  `application/pdf`, `text/csv`, and `image/*` are all classified, decoded,
+  and rendered appropriately instead of falling back to raw text or a
+  `<N bytes>` placeholder
+* New: body viewer now routes each body to the right widget — image
+  preview, file card (PDF/octet-stream) with a **Copy as Base64** action,
+  multipart fields/files table, pretty-printed XML, CSV grid, or the
+  existing JSON tree/plain-text viewer
+* New: `SamseerBinaryBody` and `SamseerMultipartBody` model types (exported)
+  represent binary and multipart bodies; binary bytes are capped at 2 MB in
+  memory per body — beyond that only size/content-type metadata is kept
+* New: `Exporter`/cURL output is content-type aware — form-urlencoded
+  `Map`s are encoded as `key=value&...`, multipart bodies become `-F`
+  flags, binary bodies are described in a comment instead of embedded
+  inline
+* Fix: `SamseerHttpOverrides` (`dart:io` `HttpClient`) previously never
+  recorded request headers or body at all — both are now captured at
+  request-close time
+* Fix: the WebView inspector script now reads binary responses (images,
+  PDFs, `octet-stream`) as bytes via `arraybuffer`/`blob` instead of
+  corrupting them through `.text()`, and captures `FormData`/
+  `URLSearchParams` request bodies as field maps instead of
+  `[object FormData]`
+* Changed: `application/json` bodies captured through the WebView bridge
+  are now parsed into `Map`/`List` like every other transport (previously
+  left as a raw string) — update any code comparing
+  `call.response.body` to a JSON string literal
+* `SamseerHttpResponse` gained a `contentType` field (mirroring
+  `SamseerHttpRequest`); `Samseer.recordResponse` gained an optional
+  `contentType` parameter
+* Example app: added a **Content types** section exercising every supported
+  type end-to-end — `application/json`, `multipart/form-data`,
+  `application/x-www-form-urlencoded`, `text/plain`, `text/html`,
+  `application/xml`, `application/octet-stream`, `application/pdf`,
+  `text/csv`, and `image/png`/`image/jpeg` — plus a `dart:io HttpClient`
+  tile that specifically demonstrates the request headers/body capture fix
+
 ## 0.4.0
 
 * New: **Copy Request Body** button on the Request tab — copies the formatted request body to the clipboard; disabled when there is no body

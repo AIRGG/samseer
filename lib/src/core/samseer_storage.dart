@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import '../model/http_call.dart';
 import '../model/http_error.dart';
+import '../model/http_request.dart';
 import '../model/http_response.dart';
 
 /// In-memory storage for [SamseerHttpCall]s with a reactive stream.
@@ -26,6 +27,10 @@ class SamseerStorage {
       _calls.removeLast();
     }
     _emit();
+  }
+
+  void updateRequest(int id, SamseerHttpRequest request) {
+    _replace(id, (c) => c.copyWith(request: request));
   }
 
   void updateResponse(int id, SamseerHttpResponse response) {

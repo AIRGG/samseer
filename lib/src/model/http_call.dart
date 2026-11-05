@@ -64,6 +64,7 @@ class SamseerHttpCall {
   }
 
   SamseerHttpCall copyWith({
+    SamseerHttpRequest? request,
     SamseerHttpResponse? response,
     SamseerHttpError? error,
   }) {
@@ -76,7 +77,7 @@ class SamseerHttpCall {
       secure: secure,
       client: client,
       createdAt: createdAt,
-      request: request,
+      request: request ?? this.request,
       response: response ?? this.response,
       error: error ?? this.error,
     );

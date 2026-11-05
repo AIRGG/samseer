@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import '../core/samseer_core.dart';
+import '../model/http_body.dart';
 import '../model/http_call.dart';
 import '../model/http_error.dart';
 import '../model/http_request.dart';
 import '../model/http_response.dart';
+import '../interceptor/body_decoder.dart';
 
 /// JavaScript snippet to inject into a WebView page (e.g. via
 /// `flutter_inappwebview`'s `initialUserScripts` at document start).
@@ -11,6 +15,15 @@ import '../model/http_response.dart';
 /// and error events to the Dart side via the `samseer_webview` JavaScript
 /// handler. Wire the handler to [Samseer.recordWebViewEvent] to surface the
 /// captured calls inside the inspector.
+///
+/// Text bodies (JSON, form-urlencoded, XML, plain text, …) are forwarded as
+/// plain strings. Binary responses (images, PDFs, `octet-stream`, …) are
+/// read as bytes on the JS side and forwarded base64-encoded, tagged with
+/// `bodyEncoding: 'base64'`, so the Dart side can decode them into the same
+/// [SamseerBinaryBody] representation used by the other transports.
+/// `FormData`/`URLSearchParams` request bodies are forwarded as a plain
+/// field map tagged `bodyEncoding: 'form-fields'` (file parts are described,
+/// not read, since that requires an async `FileReader` per file).
 ///
 /// Re-installation is idempotent (guarded by `window.__samseer_installed`).
 const String webViewInterceptorScript = r'''
@@ -42,10 +55,54 @@ const String webViewInterceptorScript = r'''
     });
     return headers;
   }
-  function bodyToString(body) {
-    if (body == null) return null;
-    if (typeof body === 'string') return body;
-    try { return String(body); } catch (_) { return null; }
+  function isBinaryContentType(ct) {
+    if (!ct) return false;
+    ct = ct.toLowerCase();
+    return ct.indexOf('image/') === 0 ||
+      ct.indexOf('font/') === 0 ||
+      ct.indexOf('video/') === 0 ||
+      ct.indexOf('audio/') === 0 ||
+      ct.indexOf('application/pdf') === 0 ||
+      ct.indexOf('application/octet-stream') === 0;
+  }
+  function arrayBufferToBase64(buffer) {
+    try {
+      var bytes = new Uint8Array(buffer);
+      var binary = '';
+      var chunk = 0x8000;
+      for (var i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      return btoa(binary);
+    } catch (_) {
+      return null;
+    }
+  }
+  // Returns { body, bodyEncoding? } describing a request body payload.
+  function requestBodyPayload(body) {
+    if (body == null) return { body: null };
+    if (typeof body === 'string') return { body: body };
+    if (typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams) {
+      return { body: body.toString() };
+    }
+    if (typeof FormData !== 'undefined' && body instanceof FormData) {
+      var fields = {};
+      try {
+        body.forEach(function (value, key) {
+          if (typeof File !== 'undefined' && value instanceof File) {
+            fields[key] = '<file: ' + value.name + ', ' + value.size + ' bytes>';
+          } else {
+            fields[key] = String(value);
+          }
+        });
+      } catch (_) {}
+      return { body: fields, bodyEncoding: 'form-fields' };
+    }
+    try {
+      return { body: String(body) };
+    } catch (_) {
+      return { body: null };
+    }
   }
 
   // --- XMLHttpRequest ---
@@ -69,25 +126,46 @@ const String webViewInterceptorScript = r'''
       };
       var origSend = xhr.send;
       xhr.send = function (body) {
+        var payload = requestBodyPayload(body);
         send({
           kind: 'req',
           cid: cid,
           method: meta.method,
           url: meta.url,
           headers: meta.headers,
-          body: bodyToString(body),
+          body: payload.body,
+          bodyEncoding: payload.bodyEncoding,
         });
         return origSend.apply(xhr, arguments);
       };
       xhr.addEventListener('load', function () {
-        var canReadText = xhr.responseType === '' || xhr.responseType === 'text';
-        send({
-          kind: 'res',
-          cid: cid,
-          status: xhr.status,
-          headers: parseHeaders(xhr.getAllResponseHeaders()),
-          body: canReadText ? xhr.responseText : null,
-        });
+        var headers = parseHeaders(xhr.getAllResponseHeaders());
+        var rt = xhr.responseType;
+        if (rt === '' || rt === 'text') {
+          send({ kind: 'res', cid: cid, status: xhr.status, headers: headers, body: xhr.responseText });
+        } else if (rt === 'arraybuffer') {
+          send({
+            kind: 'res', cid: cid, status: xhr.status, headers: headers,
+            body: arrayBufferToBase64(xhr.response), bodyEncoding: 'base64',
+          });
+        } else if (rt === 'blob' && xhr.response) {
+          try {
+            var reader = new FileReader();
+            reader.onloadend = function () {
+              var result = reader.result || '';
+              var idx = result.indexOf(',');
+              send({
+                kind: 'res', cid: cid, status: xhr.status, headers: headers,
+                body: idx >= 0 ? result.substring(idx + 1) : '', bodyEncoding: 'base64',
+              });
+            };
+            reader.readAsDataURL(xhr.response);
+          } catch (_) {
+            send({ kind: 'res', cid: cid, status: xhr.status, headers: headers, body: null });
+          }
+        } else {
+          send({ kind: 'res', cid: cid, status: xhr.status, headers: headers, body: null });
+        }
       });
       xhr.addEventListener('error', function () {
         send({ kind: 'err', cid: cid, message: 'Network error' });
@@ -137,17 +215,17 @@ const String webViewInterceptorScript = r'''
           }
         }
       } catch (_) {}
-      var body = null;
-      if (init && init.body != null) {
-        body = bodyToString(init.body);
-      }
+      var reqPayload = (init && init.body != null)
+        ? requestBodyPayload(init.body)
+        : { body: null };
       send({
         kind: 'req',
         cid: cid,
         method: method,
         url: url,
         headers: headers,
-        body: body,
+        body: reqPayload.body,
+        bodyEncoding: reqPayload.bodyEncoding,
       });
       return origFetch.apply(this, arguments).then(function (res) {
         var resHeaders = {};
@@ -156,23 +234,22 @@ const String webViewInterceptorScript = r'''
             resHeaders[String(k).toLowerCase()] = String(v);
           });
         } catch (_) {}
-        res.clone().text().then(function (text) {
-          send({
-            kind: 'res',
-            cid: cid,
-            status: res.status,
-            headers: resHeaders,
-            body: text,
+        if (isBinaryContentType(resHeaders['content-type'])) {
+          res.clone().arrayBuffer().then(function (buf) {
+            send({
+              kind: 'res', cid: cid, status: res.status, headers: resHeaders,
+              body: arrayBufferToBase64(buf), bodyEncoding: 'base64',
+            });
+          }).catch(function () {
+            send({ kind: 'res', cid: cid, status: res.status, headers: resHeaders, body: null });
           });
-        }).catch(function () {
-          send({
-            kind: 'res',
-            cid: cid,
-            status: res.status,
-            headers: resHeaders,
-            body: null,
+        } else {
+          res.clone().text().then(function (text) {
+            send({ kind: 'res', cid: cid, status: res.status, headers: resHeaders, body: text });
+          }).catch(function () {
+            send({ kind: 'res', cid: cid, status: res.status, headers: resHeaders, body: null });
           });
-        });
+        }
         return res;
       }).catch(function (err) {
         send({
@@ -220,7 +297,8 @@ class SamseerWebViewDispatcher {
     final urlString = (event['url'] ?? '').toString();
     final uri = Uri.tryParse(urlString) ?? Uri();
     final headers = _toStringMap(event['headers']);
-    final body = event['body'];
+    final contentType = headers['content-type']?.toString();
+    final body = _decodeEventBody(event, contentType);
     final id = _core.nextId();
     _ids[cid] = id;
     final now = DateTime.now();
@@ -238,7 +316,7 @@ class SamseerWebViewDispatcher {
         headers: headers,
         queryParameters: Map<String, dynamic>.from(uri.queryParameters),
         body: body,
-        contentType: headers['content-type']?.toString(),
+        contentType: contentType,
         size: _sizeOf(body),
       ),
     ));
@@ -249,7 +327,8 @@ class SamseerWebViewDispatcher {
     if (id == null) return;
     final status = event['status'];
     final headers = _toStringMap(event['headers']);
-    final body = event['body'];
+    final contentType = headers['content-type']?.toString();
+    final body = _decodeEventBody(event, contentType);
     _core.addResponse(
       id,
       SamseerHttpResponse(
@@ -261,6 +340,7 @@ class SamseerWebViewDispatcher {
         time: DateTime.now(),
         headers: headers,
         body: body,
+        contentType: contentType,
         size: _sizeOf(body),
       ),
     );
@@ -282,9 +362,41 @@ class SamseerWebViewDispatcher {
     return const <String, dynamic>{};
   }
 
+  /// Decodes the raw `body`/`bodyEncoding` pair sent by the JS bridge:
+  /// - `bodyEncoding: 'base64'` → binary bytes, run through the same
+  ///   content-type-aware decoder used by the native transports (so an
+  ///   `image/png` response becomes a [SamseerBinaryBody], JSON-typed bytes
+  ///   get parsed, etc).
+  /// - `bodyEncoding: 'form-fields'` → a captured `FormData`/URLSearchParams
+  ///   field map, wrapped as [SamseerMultipartBody].
+  /// - otherwise → a plain text body, decoded the same way (parses JSON,
+  ///   form-urlencoded, …; left as a string for XML/HTML/CSV/plain text).
+  static dynamic _decodeEventBody(Map event, String? contentType) {
+    final raw = event['body'];
+    if (raw == null) return null;
+    final encoding = event['bodyEncoding'];
+    if (encoding == 'base64' && raw is String) {
+      try {
+        return samseerDecodeBody(base64Decode(raw), contentType);
+      } catch (_) {
+        return null;
+      }
+    }
+    if (encoding == 'form-fields' && raw is Map) {
+      return SamseerMultipartBody(
+        fields: raw.map((k, v) => MapEntry(k.toString(), v.toString())),
+      );
+    }
+    if (raw is String) {
+      return samseerDecodeBody(utf8.encode(raw), contentType);
+    }
+    return raw;
+  }
+
   static int? _sizeOf(Object? body) {
     if (body == null) return null;
     if (body is String) return body.length;
+    if (body is SamseerBinaryBody) return body.totalSize;
     return null;
   }
 }

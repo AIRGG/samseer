@@ -6,7 +6,7 @@ import '../../core/samseer_core.dart';
 import '../../feature/exporter.dart';
 import '../../model/http_call.dart';
 import '../theme/samseer_theme.dart';
-import '../widget/json_viewer.dart';
+import '../widget/body_viewer.dart';
 import '../widget/key_value_table.dart';
 import '../widget/samseer_toast.dart';
 import '../widget/status_badge.dart';
@@ -237,7 +237,10 @@ class _RequestTab extends StatelessWidget {
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant),
                   )
-                : JsonViewer(value: call.request.body),
+                : BodyViewer(
+                    body: call.request.body,
+                    contentType: call.request.contentType,
+                  ),
           ),
         ),
         Padding(
@@ -304,7 +307,10 @@ class _ResponseTab extends StatelessWidget {
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant),
                   )
-                : JsonViewer(value: response.body),
+                : BodyViewer(
+                    body: response.body,
+                    contentType: response.contentType,
+                  ),
           ),
         ),
         Padding(
