@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../core/samseer_core.dart';
+import '../model/console_log.dart';
 import '../model/http_body.dart';
 import '../model/http_call.dart';
 import '../model/http_error.dart';
@@ -273,12 +274,18 @@ class SamseerWebViewDispatcher {
 
   final SamseerCore _core;
   final Map<String, int> _ids = <String, int>{};
+  final Map<String, String> _urls = <String, String>{};
 
   void dispatch(Object? event) {
     if (event is! Map) return;
     final kind = event['kind'];
+    if (kind is! String) return;
+    if (kind == 'log') {
+      _onLog(event);
+      return;
+    }
     final cid = event['cid'];
-    if (kind is! String || cid is! String) return;
+    if (cid is! String) return;
     switch (kind) {
       case 'req':
         _onRequest(cid, event);
@@ -301,6 +308,7 @@ class SamseerWebViewDispatcher {
     final body = _decodeEventBody(event, contentType);
     final id = _core.nextId();
     _ids[cid] = id;
+    _urls[cid] = urlString;
     final now = DateTime.now();
     _core.addCall(SamseerHttpCall(
       id: id,
@@ -324,6 +332,7 @@ class SamseerWebViewDispatcher {
 
   void _onResponse(String cid, Map event) {
     final id = _ids.remove(cid);
+    _urls.remove(cid);
     if (id == null) return;
     final status = event['status'];
     final headers = _toStringMap(event['headers']);
@@ -348,11 +357,39 @@ class SamseerWebViewDispatcher {
 
   void _onError(String cid, Map event) {
     final id = _ids.remove(cid);
+    final url = _urls.remove(cid);
     if (id == null) return;
-    _core.addError(
-      id,
-      SamseerHttpError(message: event['message']?.toString()),
-    );
+    final message = event['message']?.toString();
+    _core.addError(id, SamseerHttpError(message: message));
+    if (_core.configuration.captureNetworkErrorsInConsole) {
+      final where = url == null ? '' : ' ($url)';
+      _core.addConsoleLog(SamseerConsoleLog(
+        id: _core.nextId(),
+        level: SamseerLogLevel.error,
+        source: SamseerLogSource.webView,
+        message: 'Network error$where: ${message ?? 'request failed'}',
+        time: DateTime.now(),
+      ));
+    }
+  }
+
+  void _onLog(Map event) {
+    final level = samseerLogLevelFromString(event['level']);
+    final message = (event['message'] ?? '').toString();
+    final rawData = event['data'];
+    final List<Object?>? data = rawData is List
+        ? rawData
+        : (rawData == null ? null : <Object?>[rawData]);
+    final stack = event['stack']?.toString();
+    _core.addConsoleLog(SamseerConsoleLog(
+      id: _core.nextId(),
+      level: level,
+      source: SamseerLogSource.webView,
+      message: message,
+      data: data,
+      stackTrace: (stack == null || stack.isEmpty) ? null : stack,
+      time: DateTime.now(),
+    ));
   }
 
   static Map<String, dynamic> _toStringMap(Object? raw) {

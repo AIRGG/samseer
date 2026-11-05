@@ -76,6 +76,13 @@ class Samseer {
   /// Reactive stream of recorded calls.
   Stream<List<SamseerHttpCall>> get callsStream => _core.storage.stream;
 
+  /// Snapshot of all currently recorded console entries (newest first).
+  List<SamseerConsoleLog> get consoleLogs => _core.storage.consoleLogs;
+
+  /// Reactive stream of recorded console entries.
+  Stream<List<SamseerConsoleLog>> get consoleStream =>
+      _core.storage.consoleStream;
+
   /// Dio interceptor — add to `dio.interceptors`.
   SamseerDioInterceptor get dioInterceptor => SamseerDioInterceptor(_core);
 
