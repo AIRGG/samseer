@@ -27,5 +27,17 @@ void main() {
       expect(webViewInterceptorScript.contains('safeStringify'), isTrue);
       expect(webViewInterceptorScript.contains('[Circular]'), isTrue);
     });
+
+    test('swallows rejected bridge calls to avoid a rejection loop', () {
+      expect(
+          webViewInterceptorScript.contains('p.catch(function () {})'), isTrue);
+    });
+
+    test('renders Error objects as name: message instead of {}', () {
+      expect(
+          webViewInterceptorScript.contains('value instanceof Error'), isTrue);
+      expect(webViewInterceptorScript.contains('var msg = describe(reason);'),
+          isTrue);
+    });
   });
 }

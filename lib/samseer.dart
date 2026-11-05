@@ -204,15 +204,30 @@ class Samseer {
   ///
   /// Captures `print`/`debugPrint` (level [SamseerLogLevel.log]), Flutter
   /// framework errors, uncaught async errors, and zone errors (level
-  /// [SamseerLogLevel.error]) — all tagged [SamseerLogSource.app]. Output is
-  /// still forwarded to the original `print` so IDE logs are unaffected.
+  /// [SamseerLogLevel.error]), all tagged [SamseerLogSource.app]. Output is
+  /// still forwarded to the original `print`, uncaught zone errors are still
+  /// printed, and any existing `FlutterError.onError` /
+  /// `PlatformDispatcher.onError` handlers (e.g. Crashlytics) keep running.
+  ///
+  /// Put the whole `main` body inside, including
+  /// `WidgetsFlutterBinding.ensureInitialized()`; initializing the binding
+  /// outside and calling `runApp` inside triggers Flutter's "Zone mismatch"
+  /// warning.
   ///
   /// ```dart
   /// void main() {
-  ///   samseer.captureLogs(() => runApp(const MyApp()));
+  ///   samseer.captureLogs(() {
+  ///     WidgetsFlutterBinding.ensureInitialized();
+  ///     runApp(const MyApp());
+  ///   });
   /// }
   /// ```
   T? captureLogs<T>(T Function() body) {
+    final outer = Zone.current;
+    // True while a chained FlutterError handler dumps the error to the
+    // console; those lines are already captured as one error entry.
+    var presentingFlutterError = false;
+
     void recordError(Object error, StackTrace? stack) {
       _core.addConsoleLog(SamseerConsoleLog(
         id: _core.nextId(),
@@ -222,6 +237,11 @@ class Samseer {
         stackTrace: stack?.toString(),
         time: DateTime.now(),
       ));
+    }
+
+    void onZoneError(Object error, StackTrace stack) {
+      recordError(error, stack);
+      outer.print('Uncaught error: $error\n$stack');
     }
 
     return runZonedGuarded<T>(
@@ -236,21 +256,31 @@ class Samseer {
             stackTrace: details.stack?.toString(),
             time: DateTime.now(),
           ));
-          if (previousFlutterOnError != null) {
-            previousFlutterOnError(details);
-          } else {
-            FlutterError.presentError(details);
+          presentingFlutterError = true;
+          try {
+            if (previousFlutterOnError != null) {
+              previousFlutterOnError(details);
+            } else {
+              FlutterError.presentError(details);
+            }
+          } finally {
+            presentingFlutterError = false;
           }
         };
+        final previousPlatformOnError = PlatformDispatcher.instance.onError;
         PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
           recordError(error, stack);
-          return false;
+          return previousPlatformOnError?.call(error, stack) ?? false;
         };
         return body();
       },
-      recordError,
+      onZoneError,
       zoneSpecification: ZoneSpecification(
         print: (Zone self, ZoneDelegate parent, Zone zone, String line) {
+          if (presentingFlutterError) {
+            parent.print(zone, line);
+            return;
+          }
           _core.addConsoleLog(SamseerConsoleLog(
             id: _core.nextId(),
             level: SamseerLogLevel.log,

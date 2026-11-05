@@ -298,13 +298,21 @@ Samseer has a **Console** tab (bottom nav, next to Network) that collects:
   `webViewInterceptorScript` + `samseer_webview` handler you already set up for
   WebView traffic.
 - **App (Dart)**: `print`, `debugPrint`, Flutter framework errors, and uncaught
-  async errors. Wrap your `runApp` once:
+  async errors. Wrap your whole `main` body once, including
+  `WidgetsFlutterBinding.ensureInitialized()` (calling it outside and `runApp`
+  inside gives Flutter's "Zone mismatch" warning):
 
   ```dart
   void main() {
-    samseer.captureLogs(() => runApp(const MyApp()));
+    samseer.captureLogs(() {
+      WidgetsFlutterBinding.ensureInitialized();
+      runApp(const MyApp());
+    });
   }
   ```
+
+  Output still reaches your IDE console, and existing `FlutterError.onError` /
+  `PlatformDispatcher.onError` handlers (e.g. Crashlytics) keep working.
 
 Filter by level (Log/Info/Warn/Error/Debug) and source (App/WebView). Objects and
 arrays are rendered as readable JSON instead of `[object Object]`.

@@ -17,40 +17,44 @@ late final http.Client httpClient;
 late final FlutterLocalNotificationsPlugin notifications;
 late final SamseerNotificationBridge samseerNotifications;
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
+void main() {
   samseer = Samseer(
     configuration: const SamseerConfiguration(
       showInspectorOnShake: true,
     ),
   );
 
-  dio = Dio()..interceptors.add(samseer.dioInterceptor);
-  httpClient = samseer.httpClient();
-  HttpOverrides.global = samseer.httpOverrides;
+  // Everything, including ensureInitialized(), runs inside captureLogs so
+  // the binding and runApp share one zone (avoids Flutter's zone mismatch).
+  samseer.captureLogs(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  notifications = FlutterLocalNotificationsPlugin();
-  samseerNotifications = SamseerNotificationBridge(
-    samseer: samseer,
-    plugin: notifications,
-  );
+    dio = Dio()..interceptors.add(samseer.dioInterceptor);
+    httpClient = samseer.httpClient();
+    HttpOverrides.global = samseer.httpOverrides;
 
-  await notifications.initialize(
-    const InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+    notifications = FlutterLocalNotificationsPlugin();
+    samseerNotifications = SamseerNotificationBridge(
+      samseer: samseer,
+      plugin: notifications,
+    );
+
+    await notifications.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        ),
       ),
-    ),
-    onDidReceiveNotificationResponse: samseerNotifications.handleTap,
-  );
+      onDidReceiveNotificationResponse: samseerNotifications.handleTap,
+    );
 
-  samseerNotifications.start();
+    samseerNotifications.start();
 
-  samseer.captureLogs(() => runApp(const ExampleApp()));
+    runApp(const ExampleApp());
+  });
 }
 
 class ExampleApp extends StatelessWidget {
@@ -167,7 +171,8 @@ class Home extends StatelessWidget {
               onTap: () => dio.post(
                 'https://httpbin.org/post',
                 data: {'title': 'hello', 'lang': 'dart'},
-                options: Options(contentType: Headers.formUrlEncodedContentType),
+                options:
+                    Options(contentType: Headers.formUrlEncodedContentType),
               ),
             ),
             _Tile(
@@ -211,8 +216,7 @@ class Home extends StatelessWidget {
             ),
             _Tile(
               label: 'application/xml (http GET)',
-              onTap: () =>
-                  httpClient.get(Uri.parse('https://httpbin.org/xml')),
+              onTap: () => httpClient.get(Uri.parse('https://httpbin.org/xml')),
             ),
             _Tile(
               label: 'application/octet-stream (http GET)',
@@ -305,8 +309,8 @@ class Home extends StatelessWidget {
             ),
             _Tile(
               label: 'Throw an uncaught async error',
-              onTap: () => Future<void>.error(
-                  StateError('deliberate example error')),
+              onTap: () =>
+                  Future<void>.error(StateError('deliberate example error')),
             ),
           ]),
         ],

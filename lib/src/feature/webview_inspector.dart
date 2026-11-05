@@ -40,7 +40,10 @@ const String webViewInterceptorScript = r'''
   function send(payload) {
     try {
       if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-        window.flutter_inappwebview.callHandler('samseer_webview', payload);
+        var p = window.flutter_inappwebview.callHandler('samseer_webview', payload);
+        // A rejected bridge call must not surface as an unhandledrejection,
+        // which this script itself reports via send() (would loop forever).
+        if (p && typeof p.catch === 'function') p.catch(function () {});
       }
     } catch (_) {}
   }
@@ -130,6 +133,10 @@ const String webViewInterceptorScript = r'''
     if (t === 'string') return value;
     if (t === 'number' || t === 'boolean') return String(value);
     if (t === 'function') return '[Function: ' + (value.name || 'anonymous') + ']';
+    if (value instanceof Error) {
+      // message/stack are non-enumerable, JSON.stringify would give "{}".
+      return (value.name || 'Error') + ': ' + value.message;
+    }
     if (typeof Node !== 'undefined' && value instanceof Node) {
       var nid = value.id ? '#' + value.id : '';
       return '[' + (value.nodeName || 'Node') + nid + ']';
@@ -145,7 +152,7 @@ const String webViewInterceptorScript = r'''
     var data = [];
     for (var i = 0; i < args.length; i++) {
       var v = args[i];
-      if (v !== null && typeof v === 'object') {
+      if (v !== null && typeof v === 'object' && !(v instanceof Error)) {
         try { data.push(JSON.parse(safeStringify(v))); }
         catch (_) { data.push(String(v)); }
       }
@@ -166,7 +173,16 @@ const String webViewInterceptorScript = r'''
   ['log', 'info', 'warn', 'error', 'debug'].forEach(function (level) {
     var orig = console[level];
     console[level] = function () {
-      try { sendLog(level, arguments, null); } catch (_) {}
+      try {
+        var stack = null;
+        for (var i = 0; i < arguments.length; i++) {
+          if (arguments[i] instanceof Error && arguments[i].stack) {
+            stack = arguments[i].stack;
+            break;
+          }
+        }
+        sendLog(level, arguments, stack);
+      } catch (_) {}
       if (orig) return orig.apply(console, arguments);
     };
   });
@@ -179,7 +195,7 @@ const String webViewInterceptorScript = r'''
   });
   window.addEventListener('unhandledrejection', function (e) {
     var reason = e && e.reason;
-    var msg = (reason && reason.message) ? reason.message : String(reason);
+    var msg = describe(reason);
     var stack = (reason && reason.stack) ? reason.stack : null;
     sendLog('error', ['Unhandled rejection: ' + msg], stack);
   });
