@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/samseer_core.dart';
 import '../../feature/exporter.dart';
+import '../../feature/text_export.dart';
 import '../../model/http_call.dart';
 import '../theme/samseer_theme.dart';
 import '../widget/call_tile.dart';
@@ -112,19 +112,11 @@ class _CallListScreenState extends State<CallListScreen> {
           );
           return;
         }
-        final json = Exporter.buildJsonExport(calls);
-        await Clipboard.setData(ClipboardData(text: json));
-        if (!mounted) return;
-        final size = Exporter.formatSize(json.length);
-        final large = json.length > 1024 * 1024;
-        SamseerToast.show(
+        await copyOrDownloadText(
           context,
-          large ? 'Copied — large content ($size)' : 'JSON export copied',
-          subtitle: large
-              ? 'Some apps may truncate. ${calls.length} calls · $size'
-              : '${calls.length} calls · $size',
-          variant:
-              large ? SamseerToastVariant.warning : SamseerToastVariant.success,
+          text: Exporter.buildJsonExport(calls),
+          fileName: buildExportFileName(part: 'calls', time: DateTime.now()),
+          copiedTitle: 'JSON export copied',
         );
       case 'clear':
         widget.core.storage.clear();
@@ -204,17 +196,19 @@ class _NetworkViewState extends State<_NetworkView> {
       }).toList();
     }
     result = result
-        .where((c) => switch (_filter) {
-              _StatusFilter.all => true,
-              _StatusFilter.success => c.state == SamseerCallState.success,
-              _StatusFilter.redirect => c.state == SamseerCallState.redirect,
-              _StatusFilter.clientError =>
-                c.state == SamseerCallState.clientError,
-              _StatusFilter.serverError =>
-                c.state == SamseerCallState.serverError,
-              _StatusFilter.errors =>
-                c.state == SamseerCallState.error || c.hasError,
-            })
+        .where(
+          (c) => switch (_filter) {
+            _StatusFilter.all => true,
+            _StatusFilter.success => c.state == SamseerCallState.success,
+            _StatusFilter.redirect => c.state == SamseerCallState.redirect,
+            _StatusFilter.clientError =>
+              c.state == SamseerCallState.clientError,
+            _StatusFilter.serverError =>
+              c.state == SamseerCallState.serverError,
+            _StatusFilter.errors =>
+              c.state == SamseerCallState.error || c.hasError,
+          },
+        )
         .toList();
     return result;
   }
@@ -241,11 +235,15 @@ class _AnimatedTileState extends State<_AnimatedTile>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    final curve =
-        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    final curve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
     _fade = Tween<double>(begin: 0, end: 1).animate(curve);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
-        .animate(curve);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(curve);
     _controller.forward();
   }
 
