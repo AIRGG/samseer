@@ -131,6 +131,32 @@ void main() {
     expect(find.textContaining('Download .txt'), findsOneWidget);
   });
 
+  testWidgets('large body has a draggable scrollbar', (tester) async {
+    final response = jsonResponse(_bigList());
+    final call = addCall(response: response);
+    await warm(
+      tester,
+      response,
+      'body',
+      _bodyDoc(response.body, response.contentType),
+    );
+
+    await openTab(tester, call.id, 'Response');
+
+    final bar = find.ancestor(
+      of: find.byType(CustomScrollView),
+      matching: find.byType(Scrollbar),
+    );
+    expect(bar, findsOneWidget);
+    final scrollbar = tester.widget<Scrollbar>(bar);
+    expect(scrollbar.interactive, isTrue);
+    expect(scrollbar.controller, isNotNull);
+    expect(
+      tester.widget<CustomScrollView>(find.byType(CustomScrollView)).controller,
+      same(scrollbar.controller),
+    );
+  });
+
   testWidgets('small json response shows copy', (tester) async {
     final response = jsonResponse({'ok': true});
     final call = addCall(response: response);

@@ -251,11 +251,25 @@ BodyDocument? _tryBuild(bool small, BodyDocument Function() build) {
 }
 
 /// Scrollable tab content with the copy/download button pinned below it, so
-/// the button stays reachable on bodies with thousands of lines.
-class _BodyTabLayout extends StatelessWidget {
+/// the button stays reachable on bodies with thousands of lines. The
+/// scrollbar thumb can be dragged to jump through very long bodies.
+class _BodyTabLayout extends StatefulWidget {
   const _BodyTabLayout({required this.slivers, required this.button});
   final List<Widget> slivers;
   final Widget button;
+
+  @override
+  State<_BodyTabLayout> createState() => _BodyTabLayoutState();
+}
+
+class _BodyTabLayoutState extends State<_BodyTabLayout> {
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -264,11 +278,16 @@ class _BodyTabLayout extends StatelessWidget {
       children: [
         Expanded(
           child: SelectionArea(
-            child: CustomScrollView(
-              slivers: [
-                ...slivers,
-                const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              ],
+            child: Scrollbar(
+              controller: _scroll,
+              interactive: true,
+              child: CustomScrollView(
+                controller: _scroll,
+                slivers: [
+                  ...widget.slivers,
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                ],
+              ),
             ),
           ),
         ),
@@ -276,7 +295,7 @@ class _BodyTabLayout extends StatelessWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: button,
+            child: widget.button,
           ),
         ),
       ],
