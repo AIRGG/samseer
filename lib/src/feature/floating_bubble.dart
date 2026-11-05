@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../core/samseer_core.dart';
+import '../model/console_log.dart';
 import '../model/http_call.dart';
 
-/// A draggable floating bubble overlay that shows a live count of recorded
-/// HTTP calls. Tapping it opens the inspector.
+/// A draggable floating bubble overlay that shows a live count of everything
+/// recorded: HTTP calls plus console entries. Tapping it opens the inspector.
 ///
 /// Place [SamseerOverlay] near the top of your widget tree (e.g. via
 /// [MaterialApp.builder]).
@@ -49,9 +50,16 @@ class _SamseerOverlayState extends State<SamseerOverlay> {
                 child: StreamBuilder<List<SamseerHttpCall>>(
                   stream: widget.core.storage.stream,
                   initialData: widget.core.storage.calls,
-                  builder: (context, snap) {
-                    final count = snap.data?.length ?? 0;
-                    return _Bubble(count: count);
+                  builder: (context, callSnap) {
+                    return StreamBuilder<List<SamseerConsoleLog>>(
+                      stream: widget.core.storage.consoleStream,
+                      initialData: widget.core.storage.consoleLogs,
+                      builder: (context, logSnap) {
+                        final count = (callSnap.data?.length ?? 0) +
+                            (logSnap.data?.length ?? 0);
+                        return _Bubble(count: count);
+                      },
+                    );
                   },
                 ),
               ),

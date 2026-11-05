@@ -63,34 +63,49 @@ class _CallListScreenState extends State<CallListScreen> {
               ConsoleView(core: widget.core),
             ],
           ),
-          bottomNavigationBar: StreamBuilder<List<SamseerConsoleLog>>(
-            stream: widget.core.storage.consoleStream,
-            initialData: widget.core.storage.consoleLogs,
-            builder: (context, snap) {
-              final count = (snap.data ?? const []).length;
-              return NavigationBar(
-                selectedIndex: _tab,
-                onDestinationSelected: (i) => setState(() => _tab = i),
-                destinations: [
-                  const NavigationDestination(
-                    icon: Icon(Icons.travel_explore_outlined),
-                    selectedIcon: Icon(Icons.travel_explore),
-                    label: 'Network',
-                  ),
-                  NavigationDestination(
-                    icon: Badge.count(
-                      count: count,
-                      isLabelVisible: count > 0,
-                      child: const Icon(Icons.terminal_outlined),
-                    ),
-                    selectedIcon: Badge.count(
-                      count: count,
-                      isLabelVisible: count > 0,
-                      child: const Icon(Icons.terminal),
-                    ),
-                    label: 'Console',
-                  ),
-                ],
+          bottomNavigationBar: StreamBuilder<List<SamseerHttpCall>>(
+            stream: widget.core.storage.stream,
+            initialData: widget.core.storage.calls,
+            builder: (context, callSnap) {
+              final callCount = (callSnap.data ?? const []).length;
+              return StreamBuilder<List<SamseerConsoleLog>>(
+                stream: widget.core.storage.consoleStream,
+                initialData: widget.core.storage.consoleLogs,
+                builder: (context, snap) {
+                  final count = (snap.data ?? const []).length;
+                  return NavigationBar(
+                    selectedIndex: _tab,
+                    onDestinationSelected: (i) => setState(() => _tab = i),
+                    destinations: [
+                      NavigationDestination(
+                        icon: Badge.count(
+                          count: callCount,
+                          isLabelVisible: callCount > 0,
+                          child: const Icon(Icons.travel_explore_outlined),
+                        ),
+                        selectedIcon: Badge.count(
+                          count: callCount,
+                          isLabelVisible: callCount > 0,
+                          child: const Icon(Icons.travel_explore),
+                        ),
+                        label: 'Network',
+                      ),
+                      NavigationDestination(
+                        icon: Badge.count(
+                          count: count,
+                          isLabelVisible: count > 0,
+                          child: const Icon(Icons.terminal_outlined),
+                        ),
+                        selectedIcon: Badge.count(
+                          count: count,
+                          isLabelVisible: count > 0,
+                          child: const Icon(Icons.terminal),
+                        ),
+                        label: 'Console',
+                      ),
+                    ],
+                  );
+                },
               );
             },
           ),

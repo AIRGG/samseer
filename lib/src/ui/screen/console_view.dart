@@ -1,13 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/samseer_core.dart';
+import '../../feature/text_export.dart';
 import '../../model/console_log.dart';
+import '../text/body_document.dart';
 import '../theme/samseer_theme.dart';
+import '../widget/document_view.dart';
 import '../widget/empty_state.dart';
-import '../widget/json_viewer.dart';
-import '../widget/samseer_toast.dart';
 
 /// Pure filter used by the console list and unit-tested directly.
 List<SamseerConsoleLog> applyConsoleFilter(
@@ -193,7 +195,7 @@ class ConsoleLogTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  log.message,
+                  consolePreview(log.message),
                   style: SamseerTheme.mono(context, size: 12),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -327,14 +329,64 @@ class _Capsule extends StatelessWidget {
   }
 }
 
+/// Max characters of a message shown in a list tile. Longer messages are cut
+/// before layout so a huge `console.log` never gets shaped in the list.
+const int kConsolePreviewChars = 300;
+
+/// The first [kConsolePreviewChars] characters of [message], with an ellipsis
+/// when it was cut.
+String consolePreview(String message) {
+  if (message.length <= kConsolePreviewChars) return message;
+  return '${message.substring(0, kConsolePreviewChars)}\u2026';
+}
+
+/// Full text of a console entry, used both by the detail viewer and by
+/// Copy / Download .txt: the message, then each structured `data` item as
+/// 2-space JSON under a `DATA` heading, then the stack trace under
+/// `STACK TRACE`.
+String consoleEntryText(SamseerConsoleLog log) {
+  final buffer = StringBuffer(log.message);
+  final data = log.data;
+  if (data != null && data.isNotEmpty) {
+    const encoder = JsonEncoder.withIndent('  ');
+    buffer.write('\n\nDATA');
+    for (final item in data) {
+      String text;
+      try {
+        text = encoder.convert(item);
+      } catch (_) {
+        text = '$item';
+      }
+      buffer
+        ..write('\n')
+        ..write(text);
+    }
+  }
+  final stack = log.stackTrace;
+  if (stack != null && stack.isNotEmpty) {
+    buffer
+      ..write('\n\nSTACK TRACE\n')
+      ..write(stack);
+  }
+  return buffer.toString();
+}
+
+/// Top-level so the closure handed to [loadBodyDocument] captures only the
+/// (sendable) log, never a widget or BuildContext.
+BodyDocument Function() _consoleDocumentBuilder(SamseerConsoleLog log) =>
+    () => documentFromText(
+          consoleEntryText(log),
+          highlightJson: log.data != null && log.data!.isNotEmpty,
+        );
+
 class ConsoleDetailScreen extends StatelessWidget {
   const ConsoleDetailScreen({super.key, required this.log});
   final SamseerConsoleLog log;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final accent = SamseerColors.forLogLevel(log.level);
+    final build = _consoleDocumentBuilder(log);
     return Theme(
       data: SamseerTheme.theme(),
       child: Scaffold(
@@ -349,96 +401,23 @@ class ConsoleDetailScreen extends StatelessWidget {
               _SourceChip(source: log.source),
             ],
           ),
-          actions: [
-            IconButton(
-              tooltip: 'Copy',
-              icon: const Icon(Icons.content_copy_outlined),
-              onPressed: () => _copy(context),
-            ),
-          ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: SelectableText(
-                log.message,
-                style: SamseerTheme.mono(context),
-              ),
-            ),
-            if (log.data != null) ...[
-              const SizedBox(height: 16),
-              Text(
-                'DATA',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: cs.primary,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              for (final item in log.data!)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: JsonViewer(value: item),
-                  ),
-                ),
-            ],
-            if (log.stackTrace != null) ...[
-              const SizedBox(height: 16),
-              Text(
-                'STACK TRACE',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: cs.primary,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: SelectableText(
-                  log.stackTrace!,
-                  style: SamseerTheme.mono(context, size: 11),
-                ),
-              ),
-            ],
-          ],
+        body: DocumentView(
+          title: 'ENTRY',
+          future: loadBodyDocument(log, 'console', build),
+          fallback: () {
+            if (log.message.length > kCopyLimitBytes) return null;
+            try {
+              return build();
+            } catch (_) {
+              return null;
+            }
+          },
+          copyLabel: 'Copy Entry',
+          fileName: buildExportFileName(part: 'console', time: log.time),
+          copiedTitle: 'Console entry copied',
         ),
       ),
-    );
-  }
-
-  Future<void> _copy(BuildContext context) async {
-    final buffer = StringBuffer(log.message);
-    if (log.stackTrace != null) {
-      buffer
-        ..write('\n\n')
-        ..write(log.stackTrace);
-    }
-    await Clipboard.setData(ClipboardData(text: buffer.toString()));
-    if (!context.mounted) return;
-    SamseerToast.show(
-      context,
-      'Console entry copied',
-      variant: SamseerToastVariant.success,
     );
   }
 }

@@ -8,9 +8,8 @@ import '../../feature/text_export.dart';
 import '../../model/http_call.dart';
 import '../text/body_document.dart';
 import '../theme/samseer_theme.dart';
-import '../widget/body_text_sliver.dart';
 import '../widget/body_viewer.dart';
-import '../widget/export_text_button.dart';
+import '../widget/document_view.dart';
 import '../widget/key_value_table.dart';
 import '../widget/samseer_toast.dart';
 import '../widget/status_badge.dart';
@@ -250,170 +249,6 @@ BodyDocument? _tryBuild(bool small, BodyDocument Function() build) {
   }
 }
 
-/// Scrollable tab content with the copy/download button pinned below it, so
-/// the button stays reachable on bodies with thousands of lines. The
-/// scrollbar thumb can be dragged to jump through very long bodies.
-class _BodyTabLayout extends StatefulWidget {
-  const _BodyTabLayout({required this.slivers, required this.button});
-  final List<Widget> slivers;
-  final Widget button;
-
-  @override
-  State<_BodyTabLayout> createState() => _BodyTabLayoutState();
-}
-
-class _BodyTabLayoutState extends State<_BodyTabLayout> {
-  final ScrollController _scroll = ScrollController();
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: SelectionArea(
-            child: Scrollbar(
-              controller: _scroll,
-              interactive: true,
-              child: CustomScrollView(
-                controller: _scroll,
-                slivers: [
-                  ...widget.slivers,
-                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                ],
-              ),
-            ),
-          ),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: widget.button,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.primary,
-          letterSpacing: 1,
-        ),
-      ),
-    );
-  }
-}
-
-/// Header slivers, then a body rendered from [future] as virtualized rows,
-/// with an [ExportTextButton] fed by the loaded document.
-class _DocumentTab extends StatelessWidget {
-  const _DocumentTab({
-    this.header = const [],
-    this.title,
-    required this.future,
-    required this.fallback,
-    required this.copyLabel,
-    required this.fileName,
-    required this.copiedTitle,
-  });
-
-  final List<Widget> header;
-  final String? title;
-  final Future<BodyDocument> future;
-  final BodyDocument? Function() fallback;
-  final String copyLabel;
-  final String fileName;
-  final String copiedTitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<BodyDocument>(
-      key: ObjectKey(future),
-      future: future,
-      builder: (context, snap) {
-        final cs = Theme.of(context).colorScheme;
-        final loaded = snap.hasData ? snap.data : null;
-        var exportDoc = loaded;
-        final Widget body;
-        if (snap.hasError) {
-          exportDoc = fallback();
-          body = const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Could not render body',
-                style: TextStyle(color: Color(0xFFEF4444)),
-              ),
-            ),
-          );
-        } else if (loaded == null) {
-          body = const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: LinearProgressIndicator(),
-            ),
-          );
-        } else {
-          body = SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            sliver: DecoratedSliver(
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              sliver: SliverPadding(
-                padding: const EdgeInsets.all(14),
-                sliver: BodyTextSliver(document: loaded),
-              ),
-            ),
-          );
-        }
-        final heading = title;
-        return _BodyTabLayout(
-          slivers: [
-            ...header,
-            if (heading != null)
-              SliverToBoxAdapter(
-                child: _SectionTitle(
-                  loaded == null
-                      ? heading
-                      : '$heading · ${loaded.lineCount} lines',
-                ),
-              ),
-            body,
-          ],
-          button: ExportTextButton(
-            copyLabel: copyLabel,
-            document: exportDoc,
-            fileName: fileName,
-            copiedTitle: copiedTitle,
-          ),
-        );
-      },
-    );
-  }
-}
-
 /// Body section for bodies that skip the text viewer: "No body", or the
 /// binary, multipart and CSV viewers as before.
 class _PlainBodyTab extends StatelessWidget {
@@ -436,7 +271,7 @@ class _PlainBodyTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = body;
-    return _BodyTabLayout(
+    return BodyScrollLayout(
       slivers: [
         ...header,
         SliverToBoxAdapter(
@@ -519,7 +354,7 @@ class _RequestTab extends StatelessWidget {
       );
     }
     final build = _bodyDocumentBuilder(body, contentType);
-    return _DocumentTab(
+    return DocumentView(
       header: header,
       title: 'BODY',
       future: loadBodyDocument(request, 'body', build),
@@ -584,7 +419,7 @@ class _ResponseTab extends StatelessWidget {
       );
     }
     final build = _bodyDocumentBuilder(body, contentType);
-    return _DocumentTab(
+    return DocumentView(
       header: header,
       title: 'BODY',
       future: loadBodyDocument(response, 'body', build),
@@ -604,7 +439,7 @@ class _CurlTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final request = call.request;
     final build = _curlDocumentBuilder(call);
-    return _DocumentTab(
+    return DocumentView(
       future: loadBodyDocument(request, 'curl', build),
       fallback: () => _tryBuild(_smallBody(request.body, request.size), build),
       copyLabel: 'Copy cURL',
