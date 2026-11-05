@@ -4,6 +4,9 @@
 /// `dart:io` HttpClient and presents them in a Material 3 inspector UI.
 library;
 
+import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -195,6 +198,70 @@ class Samseer {
   /// handler in your WebView controller — see the README for setup.
   void recordWebViewEvent(Object? event) {
     (_webView ??= SamseerWebViewDispatcher(_core)).dispatch(event);
+  }
+
+  /// Run [body] inside a zone that captures Dart-side logs into the Console.
+  ///
+  /// Captures `print`/`debugPrint` (level [SamseerLogLevel.log]), Flutter
+  /// framework errors, uncaught async errors, and zone errors (level
+  /// [SamseerLogLevel.error]) — all tagged [SamseerLogSource.app]. Output is
+  /// still forwarded to the original `print` so IDE logs are unaffected.
+  ///
+  /// ```dart
+  /// void main() {
+  ///   samseer.captureLogs(() => runApp(const MyApp()));
+  /// }
+  /// ```
+  T? captureLogs<T>(T Function() body) {
+    void recordError(Object error, StackTrace? stack) {
+      _core.addConsoleLog(SamseerConsoleLog(
+        id: _core.nextId(),
+        level: SamseerLogLevel.error,
+        source: SamseerLogSource.app,
+        message: error.toString(),
+        stackTrace: stack?.toString(),
+        time: DateTime.now(),
+      ));
+    }
+
+    return runZonedGuarded<T>(
+      () {
+        final previousFlutterOnError = FlutterError.onError;
+        FlutterError.onError = (FlutterErrorDetails details) {
+          _core.addConsoleLog(SamseerConsoleLog(
+            id: _core.nextId(),
+            level: SamseerLogLevel.error,
+            source: SamseerLogSource.app,
+            message: details.exceptionAsString(),
+            stackTrace: details.stack?.toString(),
+            time: DateTime.now(),
+          ));
+          if (previousFlutterOnError != null) {
+            previousFlutterOnError(details);
+          } else {
+            FlutterError.presentError(details);
+          }
+        };
+        PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+          recordError(error, stack);
+          return false;
+        };
+        return body();
+      },
+      recordError,
+      zoneSpecification: ZoneSpecification(
+        print: (Zone self, ZoneDelegate parent, Zone zone, String line) {
+          _core.addConsoleLog(SamseerConsoleLog(
+            id: _core.nextId(),
+            level: SamseerLogLevel.log,
+            source: SamseerLogSource.app,
+            message: line,
+            time: DateTime.now(),
+          ));
+          parent.print(zone, line);
+        },
+      ),
+    );
   }
 
   /// Free resources. Call when you no longer need this instance.
