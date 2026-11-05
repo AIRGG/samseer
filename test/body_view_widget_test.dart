@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:samseer/src/core/samseer_configuration.dart';
 import 'package:samseer/src/core/samseer_core.dart';
@@ -12,6 +12,7 @@ import 'package:samseer/src/model/http_request.dart';
 import 'package:samseer/src/model/http_response.dart';
 import 'package:samseer/src/ui/screen/call_detail_screen.dart';
 import 'package:samseer/src/ui/text/body_document.dart';
+import 'package:samseer/src/ui/text/body_rows.dart';
 import 'package:samseer/src/ui/widget/binary_body_view.dart';
 import 'package:samseer/src/ui/widget/body_text_sliver.dart';
 
@@ -218,5 +219,77 @@ void main() {
     expect(find.byType(BodyRowView), findsNothing);
     expect(find.byType(BinaryBodyView), findsOneWidget);
     expect(find.text('Copy Response Body'), findsOneWidget);
+  });
+
+  // Selects everything under the screen's SelectionArea and returns what
+  // "Copy" puts on the clipboard.
+  Future<String> copyAll(WidgetTester tester) async {
+    final clipboard = <String>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboard.add((call.arguments as Map)['text'] as String);
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+    // Selectables register on the frame after they are built.
+    await tester.pump();
+    final inside = tester.element(find.byType(CustomScrollView));
+    Actions.invoke(
+      inside,
+      const SelectAllTextIntent(SelectionChangedCause.keyboard),
+    );
+    await tester.pump();
+    Actions.invoke(inside, CopySelectionTextIntent.copy);
+    await tester.pump();
+    expect(clipboard, isNotEmpty);
+    return clipboard.last;
+  }
+
+  testWidgets('selection copy keeps line breaks, joins continuation rows', (
+    tester,
+  ) async {
+    const text = 'abcdefghij\n\nxy\r\nlast';
+    final doc = BodyDocument(
+      text: text,
+      rows: buildRows(text, highlightJson: false, chunkSize: 4),
+      byteLength: text.length,
+    );
+    expect(doc.rows.length, 6);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SelectionArea(
+            child: CustomScrollView(slivers: [BodyTextSliver(document: doc)]),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(await copyAll(tester), 'abcdefghij\n\nxy\nlast');
+  });
+
+  testWidgets('select all and copy in the response tab keeps lines', (
+    tester,
+  ) async {
+    final response = jsonResponse({
+      'a': 1,
+      'b': [true, null],
+    });
+    final call = addCall(response: response);
+    await warm(
+      tester,
+      response,
+      'body',
+      _bodyDoc(response.body, response.contentType),
+    );
+
+    await openTab(tester, call.id, 'Response');
+
+    expect(await copyAll(tester), contains(Exporter.formatBody(response.body)));
   });
 }
