@@ -13,8 +13,8 @@ topics:
   - logger
 
 environment:
-  sdk: ^3.5.0
-  flutter: ">=3.19.0"
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
 
 dependencies:
   flutter:
@@ -26,6 +26,7 @@ dependencies:
 
   # Features
   sensors_plus: ^7.0.0
+  file_picker: ^13.3.2
 
   # UI
   google_fonts: ^8.1.0
