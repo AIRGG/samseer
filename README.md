@@ -344,9 +344,18 @@ lazily built lines, so a multi-MB JSON response opens instantly and scrolls
 smoothly (with a draggable scrollbar). The text on screen is exactly what Copy
 produces: line N in the viewer is line N of the copied or downloaded text.
 
-Any copy larger than **100 KB** (body, cURL, the call dump, or "Copy as JSON")
-becomes **Download .txt** through the system save dialog: Android shows its
-"Save to" screen, iOS shows "Save to Files".
+Any copy larger than **100 KB** (body, cURL, the call dump, "Copy as JSON", or a
+console entry) becomes **Download .txt** through the system save dialog:
+Android shows its "Save to" screen, iOS shows "Save to Files". Change the limit
+with `copyLimitBytes`:
+
+```dart
+final samseer = Samseer(
+  configuration: const SamseerConfiguration(
+    copyLimitBytes: 512 * 1024, // copy up to 512 KB, download above
+  ),
+);
+```
 
 ---
 
@@ -368,6 +377,7 @@ final samseer = Samseer(
 | `maxCallsCount` | `1000` | Older calls are evicted FIFO once the limit is hit |
 | `maxConsoleLogsCount` | `500` | Older console entries are evicted FIFO once the limit is hit |
 | `captureNetworkErrorsInConsole` | `true` | Mirror WebView network errors into the Console as error entries |
+| `copyLimitBytes` | `102400` (100 KB) | Copy actions copy up to this many UTF-8 bytes; above it they offer Download .txt. `0` always downloads |
 | `showInspectorOnShake` | `true` | Shake the device to open the inspector |
 | `showFloatingBubble` | `false` | Set to `true` and wrap with `samseer.overlay(...)` |
 | `shakeThreshold` | `20` (m/s²) | Higher value = harder shake required |

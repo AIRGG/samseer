@@ -10,7 +10,8 @@ class SamseerConfiguration {
     this.shakeThreshold = 20,
     this.maxConsoleLogsCount = 500,
     this.captureNetworkErrorsInConsole = true,
-  });
+    this.copyLimitBytes = 100 * 1024,
+  }) : assert(copyLimitBytes >= 0);
 
   /// Max number of HTTP calls to keep in memory. Older calls are evicted FIFO.
   final int maxCallsCount;
@@ -36,6 +37,11 @@ class SamseerConfiguration {
   /// in the Console. Successful (2xx/3xx) responses are never echoed.
   final bool captureNetworkErrorsInConsole;
 
+  /// Copy limit in UTF-8 bytes. Copy actions (bodies, cURL, the call dump,
+  /// "Copy as JSON", console entries) copy to the clipboard up to this size
+  /// and offer "Download .txt" above it. `0` always downloads.
+  final int copyLimitBytes;
+
   SamseerConfiguration copyWith({
     int? maxCallsCount,
     bool? showInspectorOnShake,
@@ -44,6 +50,7 @@ class SamseerConfiguration {
     double? shakeThreshold,
     int? maxConsoleLogsCount,
     bool? captureNetworkErrorsInConsole,
+    int? copyLimitBytes,
   }) {
     return SamseerConfiguration(
       maxCallsCount: maxCallsCount ?? this.maxCallsCount,
@@ -54,6 +61,7 @@ class SamseerConfiguration {
       maxConsoleLogsCount: maxConsoleLogsCount ?? this.maxConsoleLogsCount,
       captureNetworkErrorsInConsole:
           captureNetworkErrorsInConsole ?? this.captureNetworkErrorsInConsole,
+      copyLimitBytes: copyLimitBytes ?? this.copyLimitBytes,
     );
   }
 }

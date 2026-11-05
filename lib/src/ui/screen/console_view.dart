@@ -114,7 +114,11 @@ class _ConsoleViewState extends State<ConsoleView> {
                   log: logs[i],
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => ConsoleDetailScreen(log: logs[i]),
+                      builder: (_) => ConsoleDetailScreen(
+                        log: logs[i],
+                        copyLimitBytes:
+                            widget.core.configuration.copyLimitBytes,
+                      ),
                     ),
                   ),
                 ),
@@ -380,8 +384,15 @@ BodyDocument Function() _consoleDocumentBuilder(SamseerConsoleLog log) =>
         );
 
 class ConsoleDetailScreen extends StatelessWidget {
-  const ConsoleDetailScreen({super.key, required this.log});
+  const ConsoleDetailScreen({
+    super.key,
+    required this.log,
+    this.copyLimitBytes = kCopyLimitBytes,
+  });
   final SamseerConsoleLog log;
+
+  /// Copy limit in UTF-8 bytes; larger entries are downloaded instead.
+  final int copyLimitBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -416,6 +427,7 @@ class ConsoleDetailScreen extends StatelessWidget {
           copyLabel: 'Copy Entry',
           fileName: buildExportFileName(part: 'console', time: log.time),
           copiedTitle: 'Console entry copied',
+          limitBytes: copyLimitBytes,
         ),
       ),
     );

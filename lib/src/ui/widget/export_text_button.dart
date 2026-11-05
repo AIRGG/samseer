@@ -12,9 +12,11 @@ class ExportTextButton extends StatelessWidget {
     required this.document,
     required this.fileName,
     required this.copiedTitle,
+    this.limitBytes = kCopyLimitBytes,
   });
 
   final String copyLabel;
+  final int limitBytes;
   final BodyDocument? document;
   final String fileName;
   final String copiedTitle;
@@ -29,7 +31,7 @@ class ExportTextButton extends StatelessWidget {
         onPressed: null,
       );
     }
-    final download = exceedsCopyLimit(doc.byteLength);
+    final download = exceedsCopyLimit(doc.byteLength, limitBytes: limitBytes);
     return FilledButton.icon(
       icon: Icon(download ? Icons.download : Icons.copy),
       label: Text(
@@ -42,6 +44,7 @@ class ExportTextButton extends StatelessWidget {
         text: doc.text,
         fileName: fileName,
         copiedTitle: copiedTitle,
+        limitBytes: limitBytes,
       ),
     );
   }

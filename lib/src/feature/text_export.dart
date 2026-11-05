@@ -7,10 +7,14 @@ import 'package:flutter/services.dart';
 import '../ui/widget/samseer_toast.dart';
 import 'exporter.dart';
 
-/// Bodies larger than this (UTF-8 bytes) are downloaded instead of copied.
+/// Default copy limit: text larger than this (UTF-8 bytes) is downloaded as a
+/// .txt file instead of copied. Override with
+/// `SamseerConfiguration.copyLimitBytes`.
 const int kCopyLimitBytes = 100 * 1024;
 
-bool exceedsCopyLimit(int utf8Bytes) => utf8Bytes > kCopyLimitBytes;
+/// Whether [utf8Bytes] is over [limitBytes] and should be downloaded.
+bool exceedsCopyLimit(int utf8Bytes, {int limitBytes = kCopyLimitBytes}) =>
+    utf8Bytes > limitBytes;
 
 /// `samseer[-method][-endpoint]-part-yyyyMMdd-HHmmss.txt`
 String buildExportFileName({
@@ -67,9 +71,10 @@ Future<void> copyOrDownloadText(
   required String text,
   required String fileName,
   required String copiedTitle,
+  int limitBytes = kCopyLimitBytes,
 }) async {
   final bytes = Uint8List.fromList(utf8.encode(text));
-  if (!exceedsCopyLimit(bytes.length)) {
+  if (!exceedsCopyLimit(bytes.length, limitBytes: limitBytes)) {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     SamseerToast.show(

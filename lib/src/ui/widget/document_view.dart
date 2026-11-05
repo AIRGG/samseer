@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../feature/text_export.dart';
 import '../text/body_document.dart';
 import 'body_text_sliver.dart';
 import 'export_text_button.dart';
@@ -94,6 +95,7 @@ class DocumentView extends StatelessWidget {
     required this.copyLabel,
     required this.fileName,
     required this.copiedTitle,
+    this.limitBytes = kCopyLimitBytes,
   });
 
   final List<Widget> header;
@@ -103,6 +105,9 @@ class DocumentView extends StatelessWidget {
   final String copyLabel;
   final String fileName;
   final String copiedTitle;
+
+  /// Copy limit in UTF-8 bytes; larger text is downloaded instead.
+  final int limitBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +171,7 @@ class DocumentView extends StatelessWidget {
             document: exportDoc,
             fileName: fileName,
             copiedTitle: copiedTitle,
+            limitBytes: limitBytes,
           ),
         );
       },

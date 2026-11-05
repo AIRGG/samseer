@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:samseer/src/core/samseer_configuration.dart';
 import 'package:samseer/src/feature/text_export.dart';
 import 'package:samseer/src/ui/text/body_document.dart';
 import 'package:samseer/src/ui/theme/samseer_theme.dart';
@@ -35,7 +36,11 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  Future<void> pump(WidgetTester tester, BodyDocument? doc) {
+  Future<void> pump(
+    WidgetTester tester,
+    BodyDocument? doc, {
+    int limitBytes = kCopyLimitBytes,
+  }) {
     return tester.pumpWidget(
       MaterialApp(
         theme: SamseerTheme.theme(),
@@ -45,6 +50,7 @@ void main() {
             document: doc,
             fileName: 'out.txt',
             copiedTitle: 'Body copied',
+            limitBytes: limitBytes,
           ),
         ),
       ),
@@ -54,6 +60,30 @@ void main() {
   test('limit boundary', () {
     expect(exceedsCopyLimit(102400), isFalse);
     expect(exceedsCopyLimit(102401), isTrue);
+  });
+
+  test('custom limit', () {
+    expect(exceedsCopyLimit(512, limitBytes: 512), isFalse);
+    expect(exceedsCopyLimit(513, limitBytes: 512), isTrue);
+    expect(exceedsCopyLimit(1, limitBytes: 0), isTrue);
+  });
+
+  test('configuration copyLimitBytes defaults to 100 KB and copies over', () {
+    const config = SamseerConfiguration();
+    expect(config.copyLimitBytes, kCopyLimitBytes);
+    expect(config.copyLimitBytes, 102400);
+    final custom = config.copyWith(copyLimitBytes: 512 * 1024);
+    expect(custom.copyLimitBytes, 524288);
+    expect(custom.copyWith(maxCallsCount: 10).copyLimitBytes, 524288);
+  });
+
+  testWidgets('button follows a custom limit', (tester) async {
+    await pump(tester, _doc('0123456789'), limitBytes: 5);
+    expect(find.textContaining('Download .txt'), findsOneWidget);
+
+    await pump(tester, _doc('x' * 200000), limitBytes: 512 * 1024);
+    expect(find.text('Copy body'), findsOneWidget);
+    expect(find.textContaining('Download .txt'), findsNothing);
   });
 
   test('file name', () {

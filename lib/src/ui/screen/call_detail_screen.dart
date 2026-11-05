@@ -29,6 +29,7 @@ class CallDetailScreen extends StatelessWidget {
           (c) => c.id == callId,
           orElse: () => core.storage.findById(callId)!,
         );
+        final limit = core.configuration.copyLimitBytes;
         return DefaultTabController(
           length: 4,
           child: Theme(
@@ -73,9 +74,9 @@ class CallDetailScreen extends StatelessWidget {
               body: TabBarView(
                 children: [
                   _OverviewTab(call: call),
-                  _RequestTab(call: call),
-                  _ResponseTab(call: call),
-                  _CurlTab(call: call),
+                  _RequestTab(call: call, limitBytes: limit),
+                  _ResponseTab(call: call, limitBytes: limit),
+                  _CurlTab(call: call, limitBytes: limit),
                 ],
               ),
             ),
@@ -96,6 +97,7 @@ class CallDetailScreen extends StatelessWidget {
         time: call.createdAt,
       ),
       copiedTitle: 'Request & response copied',
+      limitBytes: core.configuration.copyLimitBytes,
     );
   }
 }
@@ -259,6 +261,7 @@ class _PlainBodyTab extends StatelessWidget {
     required this.copyLabel,
     required this.fileName,
     required this.copiedTitle,
+    required this.limitBytes,
   });
 
   final List<Widget> header;
@@ -267,6 +270,7 @@ class _PlainBodyTab extends StatelessWidget {
   final String copyLabel;
   final String fileName;
   final String copiedTitle;
+  final int limitBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -301,6 +305,7 @@ class _PlainBodyTab extends StatelessWidget {
                 text: Exporter.formatBody(value, contentType: contentType),
                 fileName: fileName,
                 copiedTitle: copiedTitle,
+                limitBytes: limitBytes,
               ),
       ),
     );
@@ -308,8 +313,9 @@ class _PlainBodyTab extends StatelessWidget {
 }
 
 class _RequestTab extends StatelessWidget {
-  const _RequestTab({required this.call});
+  const _RequestTab({required this.call, required this.limitBytes});
   final SamseerHttpCall call;
+  final int limitBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -351,6 +357,7 @@ class _RequestTab extends StatelessWidget {
         copyLabel: 'Copy Request Body',
         fileName: fileName,
         copiedTitle: 'Request body copied',
+        limitBytes: limitBytes,
       );
     }
     final build = _bodyDocumentBuilder(body, contentType);
@@ -362,13 +369,15 @@ class _RequestTab extends StatelessWidget {
       copyLabel: 'Copy Request Body',
       fileName: fileName,
       copiedTitle: 'Request body copied',
+      limitBytes: limitBytes,
     );
   }
 }
 
 class _ResponseTab extends StatelessWidget {
-  const _ResponseTab({required this.call});
+  const _ResponseTab({required this.call, required this.limitBytes});
   final SamseerHttpCall call;
+  final int limitBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -416,6 +425,7 @@ class _ResponseTab extends StatelessWidget {
         copyLabel: 'Copy Response Body',
         fileName: fileName,
         copiedTitle: 'Response body copied',
+        limitBytes: limitBytes,
       );
     }
     final build = _bodyDocumentBuilder(body, contentType);
@@ -427,13 +437,15 @@ class _ResponseTab extends StatelessWidget {
       copyLabel: 'Copy Response Body',
       fileName: fileName,
       copiedTitle: 'Response body copied',
+      limitBytes: limitBytes,
     );
   }
 }
 
 class _CurlTab extends StatelessWidget {
-  const _CurlTab({required this.call});
+  const _CurlTab({required this.call, required this.limitBytes});
   final SamseerHttpCall call;
+  final int limitBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -450,6 +462,7 @@ class _CurlTab extends StatelessWidget {
         time: call.createdAt,
       ),
       copiedTitle: 'cURL copied',
+      limitBytes: limitBytes,
     );
   }
 }
