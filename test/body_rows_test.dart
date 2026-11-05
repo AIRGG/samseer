@@ -7,6 +7,48 @@ List<BodyToken> _significant(String line) => tokenizeJsonLine(line)
     )
     .toList();
 
+// The eager row builder this feature shipped first: tokenize the whole line,
+// then slice the tokens at chunk boundaries. Lazy rows must match it exactly.
+List<List<BodyToken>> _eagerRows(String line, int chunkSize) {
+  if (line.length <= chunkSize) {
+    return [
+      line.isEmpty
+          ? [BodyToken(BodyTokenKind.plain, line)]
+          : tokenizeJsonLine(line),
+    ];
+  }
+  final out = <List<BodyToken>>[];
+  var current = <BodyToken>[];
+  var used = 0;
+  void emit() {
+    out.add(current);
+    current = <BodyToken>[];
+    used = 0;
+  }
+
+  for (final token in tokenizeJsonLine(line)) {
+    var rest = token.text;
+    while (rest.isNotEmpty) {
+      final room = chunkSize - used;
+      if (rest.length <= room) {
+        current.add(BodyToken(token.kind, rest));
+        used += rest.length;
+        rest = '';
+      } else {
+        current.add(BodyToken(token.kind, rest.substring(0, room)));
+        rest = rest.substring(room);
+        emit();
+      }
+    }
+    if (used == chunkSize) emit();
+  }
+  if (current.isNotEmpty) emit();
+  return out;
+}
+
+String _dump(List<BodyToken> tokens) =>
+    tokens.map((t) => '${t.kind.name}:${t.text}').join('|');
+
 void main() {
   group('buildRows', () {
     test('numbers source lines from 1', () {
@@ -59,6 +101,51 @@ void main() {
       final rows = buildRows('{"a":1}', highlightJson: false);
       expect(rows.single.tokens.length, 1);
       expect(rows.single.tokens.single.kind, BodyTokenKind.plain);
+    });
+
+    test('lazy highlighted chunks match the eager slicer', () {
+      const lines = [
+        '{"key": "value", "n": -12.5e+3, "t": true, "f": false, "z": null}',
+        '  "a b c" :  [1,2,3], "esc\\"aped": "x\\"y", "k":"v"',
+        '[{"id":1,"name":"item number 1","active":true,"score":1.5}]',
+        '"unterminated string that runs to the end',
+        'plain words then "s" and -x and 1.e5 and tru fals nul',
+      ];
+      for (final line in lines) {
+        for (var size = 1; size <= 17; size++) {
+          final rows = buildRows(line, highlightJson: true, chunkSize: size);
+          final expected = _eagerRows(line, size);
+          expect(rows.length, expected.length, reason: '$line @ $size');
+          for (var i = 0; i < rows.length; i++) {
+            expect(
+              _dump(rows[i].tokens),
+              _dump(expected[i]),
+              reason: 'row $i of $line @ $size',
+            );
+          }
+        }
+      }
+    });
+
+    test('lazy rows work across many lines and CRLF', () {
+      final text = '{\r\n  "a": "${'q' * 9}",\r\n  "bb": 12345678\r\n}';
+      final rows = buildRows(text, highlightJson: true, chunkSize: 5);
+      final lines = text
+          .split('\n')
+          .map((l) => l.endsWith('\r') ? l.substring(0, l.length - 1) : l);
+      final expected = [for (final l in lines) ..._eagerRows(l, 5)];
+      expect(rows.map((r) => _dump(r.tokens)), expected.map(_dump));
+    });
+
+    test('rows are offsets into the text, tokens built on demand', () {
+      final text = '{"a": "${'y' * 4500}"}\n[1]';
+      final rows = buildRows(text, highlightJson: true);
+      expect(rows, isA<BodyRows>());
+      expect(identical(rows.text, text), isTrue);
+      expect(rows.lineCount, 2);
+      expect(identical(rows[0].tokens, rows[0].tokens), isFalse);
+      expect(rows.map((r) => r.lineNumber), [1, null, null, 2]);
+      expect(rows.map((r) => r.text).join(), text.replaceAll('\n', ''));
     });
   });
 

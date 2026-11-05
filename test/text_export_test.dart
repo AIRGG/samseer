@@ -8,11 +8,7 @@ import 'package:samseer/src/ui/text/body_document.dart';
 import 'package:samseer/src/ui/theme/samseer_theme.dart';
 import 'package:samseer/src/ui/widget/export_text_button.dart';
 
-BodyDocument _doc(String text) => BodyDocument(
-  text: text,
-  rows: const [],
-  byteLength: utf8.encode(text).length,
-);
+BodyDocument _doc(String text) => documentFromText(text, highlightJson: false);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

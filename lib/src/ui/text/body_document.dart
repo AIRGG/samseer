@@ -16,11 +16,11 @@ class BodyDocument {
   });
 
   final String text;
-  final List<BodyRow> rows;
+  final BodyRows rows;
   final int byteLength;
 
   /// Number of source lines (continuation rows are not counted).
-  int get lineCount => rows.where((r) => r.lineNumber != null).length;
+  int get lineCount => rows.lineCount;
 }
 
 BodyDocument documentFromText(String text, {required bool highlightJson}) {
@@ -50,16 +50,43 @@ bool usesTextViewer(dynamic body, String? contentType) {
   return true;
 }
 
-final Expando<Map<String, Future<BodyDocument>>> _documentCache =
-    Expando<Map<String, Future<BodyDocument>>>('samseerBodyDocument');
+/// How many documents stay cached. Each one holds its full text, so the cap
+/// keeps several multi-megabyte bodies from piling up in memory.
+const int kBodyDocumentCacheSize = 5;
+
+class _CacheEntry {
+  _CacheEntry(this.owner, this.slot, this.future);
+  final Object owner;
+  final String slot;
+  final Future<BodyDocument> future;
+}
+
+/// Least recently used first.
+final List<_CacheEntry> _documentCache = <_CacheEntry>[];
 
 /// Builds a document off the UI thread, cached per [owner] and [slot] so
-/// rebuilds never redo the work.
+/// rebuilds never redo the work. Only the [kBodyDocumentCacheSize] most
+/// recently used documents are kept.
 Future<BodyDocument> loadBodyDocument(
   Object owner,
   String slot,
   BodyDocument Function() build,
 ) {
-  final slots = _documentCache[owner] ??= <String, Future<BodyDocument>>{};
-  return slots[slot] ??= compute((_) => build(), null);
+  for (var i = 0; i < _documentCache.length; i++) {
+    final entry = _documentCache[i];
+    if (identical(entry.owner, owner) && entry.slot == slot) {
+      if (i != _documentCache.length - 1) {
+        _documentCache
+          ..removeAt(i)
+          ..add(entry);
+      }
+      return entry.future;
+    }
+  }
+  final future = compute((_) => build(), null);
+  _documentCache.add(_CacheEntry(owner, slot, future));
+  if (_documentCache.length > kBodyDocumentCacheSize) {
+    _documentCache.removeAt(0);
+  }
+  return future;
 }

@@ -15,21 +15,13 @@ class BodyTextSliver extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = document.rows;
-    final digits = '${_lastLineNumber(rows)}'.length;
+    final digits = '${document.lineCount}'.length;
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) => BodyRowView(row: rows[index], gutterDigits: digits),
         childCount: rows.length,
       ),
     );
-  }
-
-  static int _lastLineNumber(List<BodyRow> rows) {
-    for (var i = rows.length - 1; i >= 0; i--) {
-      final n = rows[i].lineNumber;
-      if (n != null) return n;
-    }
-    return 1;
   }
 }
 

@@ -81,4 +81,45 @@ void main() {
     expect(identical(f1, f3), isFalse);
     expect((await f1).text, 'hi');
   });
+  test('cache keeps the 5 most recent owners', () async {
+    final now = DateTime.now();
+    final owners = List.generate(
+      6,
+      (_) => SamseerHttpResponse(status: 200, time: now, body: 'hi'),
+    );
+    final first = [
+      for (final o in owners.take(5))
+        loadBodyDocument(o, 'body', () => documentFromBody('hi')),
+    ];
+    // Touch owner 2 so it is the most recent before the 6th arrives.
+    expect(
+      identical(
+        loadBodyDocument(owners[1], 'body', () => documentFromBody('x')),
+        first[1],
+      ),
+      isTrue,
+    );
+    loadBodyDocument(owners[5], 'body', () => documentFromBody('hi'));
+    final again = loadBodyDocument(
+      owners[0],
+      'body',
+      () => documentFromBody('hi'),
+    );
+    expect(identical(again, first[0]), isFalse);
+    expect(
+      identical(
+        loadBodyDocument(owners[1], 'body', () => documentFromBody('x')),
+        first[1],
+      ),
+      isTrue,
+    );
+    await Future.wait([...first, again]);
+  });
+
+  test('line count is cached on the rows', () {
+    final doc = documentFromText('a\n${'b' * 4500}\nc', highlightJson: false);
+    expect(doc.rows.length, 5);
+    expect(doc.lineCount, 3);
+    expect(doc.rows.lineCount, 3);
+  });
 }
