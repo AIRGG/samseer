@@ -18,7 +18,6 @@ class Exporter {
   /// Format is plain text — friendly for Slack, Discord, GitHub issues.
   static String buildCallDump(SamseerHttpCall call) {
     final b = StringBuffer();
-    const encoder = JsonEncoder.withIndent('  ');
 
     b
       ..writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -44,7 +43,7 @@ class Exporter {
     if (call.request.body != null) {
       b
         ..writeln('Body:')
-        ..writeln(_formatBody(call.request.body, encoder,
+        ..writeln(formatBody(call.request.body,
             contentType: call.request.contentType));
     }
     b.writeln();
@@ -65,8 +64,8 @@ class Exporter {
       if (response.body != null) {
         b
           ..writeln('Body:')
-          ..writeln(_formatBody(response.body, encoder,
-              contentType: response.contentType));
+          ..writeln(
+              formatBody(response.body, contentType: response.contentType));
       }
       b.writeln();
     } else {
@@ -83,17 +82,14 @@ class Exporter {
   /// Returns the request body as a formatted string, or null if there is none.
   static String? buildRequestBody(SamseerHttpCall call) {
     if (call.request.body == null) return null;
-    const encoder = JsonEncoder.withIndent('  ');
-    return _formatBody(call.request.body, encoder,
-        contentType: call.request.contentType);
+    return formatBody(call.request.body, contentType: call.request.contentType);
   }
 
   /// Returns the response body as a formatted string, or null if there is none.
   static String? buildResponseBody(SamseerHttpCall call) {
     final body = call.response?.body;
     if (body == null) return null;
-    const encoder = JsonEncoder.withIndent('  ');
-    return _formatBody(body, encoder, contentType: call.response?.contentType);
+    return formatBody(body, contentType: call.response?.contentType);
   }
 
   /// Build a cURL representation of the given call. `multipart/form-data`
@@ -114,8 +110,8 @@ class Exporter {
       });
       for (final f in body.files) {
         final type = f.contentType != null ? ';type=${f.contentType}' : '';
-        buffer
-            .write(" -F '${_escape('${f.field}=@${f.filename ?? 'file'}$type')}'");
+        buffer.write(
+            " -F '${_escape('${f.field}=@${f.filename ?? 'file'}$type')}'");
       }
     } else if (body is SamseerBinaryBody) {
       buffer.write(
@@ -139,11 +135,9 @@ class Exporter {
     return '${(bytes / 1024 / 1024).toStringAsFixed(2)} MB';
   }
 
-  static String _formatBody(
-    dynamic body,
-    JsonEncoder encoder, {
-    String? contentType,
-  }) {
+  /// Formats a captured body exactly as Copy/Download and the viewer show it.
+  static String formatBody(dynamic body, {String? contentType}) {
+    const encoder = JsonEncoder.withIndent('  ');
     if (body == null) return '';
     if (body is SamseerBinaryBody) {
       final type = body.contentType ?? contentType ?? 'unknown type';
