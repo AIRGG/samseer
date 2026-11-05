@@ -50,7 +50,7 @@ Future<void> main() async {
 
   samseerNotifications.start();
 
-  runApp(const ExampleApp());
+  samseer.captureLogs(() => runApp(const ExampleApp()));
 }
 
 class ExampleApp extends StatelessWidget {
@@ -282,6 +282,31 @@ class Home extends StatelessWidget {
                   builder: (_) => SamseerWebViewDemoPage(samseer: samseer),
                 ),
               ),
+            ),
+          ]),
+          _Section(title: 'Console (App logs)', children: [
+            _Tile(
+              label: 'print() a string',
+              // ignore: avoid_print
+              onTap: () => print('Hello from the example app'),
+            ),
+            _Tile(
+              label: 'debugPrint() a string',
+              onTap: () => debugPrint('debugPrint line from example'),
+            ),
+            _Tile(
+              label: 'print() a Map (readable, not [object Object])',
+              // ignore: avoid_print
+              onTap: () => print({
+                'user': 1,
+                'items': [1, 2, 3],
+                'nested': {'ok': true},
+              }),
+            ),
+            _Tile(
+              label: 'Throw an uncaught async error',
+              onTap: () => Future<void>.error(
+                  StateError('deliberate example error')),
             ),
           ]),
         ],

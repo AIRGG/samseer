@@ -1,3 +1,15 @@
+## 0.6.0
+
+* New: unified **Console** tab capturing WebView `console.*` and JS errors
+  plus Flutter-app `print`/`debugPrint`/uncaught errors, with level and source
+  filter capsules and a detail view.
+* New: `Samseer.captureLogs(() => runApp(...))` to capture Dart-side logs.
+* New: WebView network errors are surfaced into the Console (configurable via
+  `SamseerConfiguration.captureNetworkErrorsInConsole`).
+* New: readable console serialization: objects/arrays render as JSON instead
+  of `[object Object]`.
+* New: `SamseerConfiguration.maxConsoleLogsCount` (default 500).
+
 ## 0.5.0
 
 * New: full content-type-aware body handling across every transport (Dio,

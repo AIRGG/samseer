@@ -29,6 +29,7 @@ If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github
 - 🎨 **Material 3 UI** with light & dark themes that follow the host app
 - 🔌 **Three HTTP clients out of the box** — Dio, `http`, `dart:io HttpClient` — no extra packages
 - 🌐 **WebView traffic too** — drop-in JS interceptor for XHR/`fetch` inside `flutter_inappwebview`, no extra dep on Samseer's side
+- 🖥️ **Console capture**: WebView `console.*` and JS errors, plus your Flutter app's `print`/`debugPrint`/uncaught errors, in one filterable Console tab (objects render as readable JSON, not `[object Object]`)
 - 🔍 **Powerful call list** with live search, status & method filters
 - 📑 **Tabbed call detail** — Overview · Request · Response · cURL
 - 🌈 **Content-type-aware body viewer** — syntax-highlighted JSON tree, form-urlencoded & multipart fields tables, pretty-printed XML, CSV grid, and image/PDF/binary previews with a Copy-as-Base64 action
@@ -287,6 +288,26 @@ Limitations to know:
 > 💡 Like the notification bridge, treat this as a **debug-only** integration — guard the script injection behind `kDebugMode` or a build flavor so it doesn't ship in release builds.
 
 A complete, runnable demo lives in [`example/lib/samseer_webview_demo_page.dart`](example/lib/samseer_webview_demo_page.dart).
+
+### Console (App + WebView)
+
+Samseer has a **Console** tab (bottom nav, next to Network) that collects:
+
+- **WebView**: `console.log/info/warn/error/debug`, uncaught JS errors, and
+  unhandled promise rejections. **No extra wiring**: it rides the same
+  `webViewInterceptorScript` + `samseer_webview` handler you already set up for
+  WebView traffic.
+- **App (Dart)**: `print`, `debugPrint`, Flutter framework errors, and uncaught
+  async errors. Wrap your `runApp` once:
+
+  ```dart
+  void main() {
+    samseer.captureLogs(() => runApp(const MyApp()));
+  }
+  ```
+
+Filter by level (Log/Info/Warn/Error/Debug) and source (App/WebView). Objects and
+arrays are rendered as readable JSON instead of `[object Object]`.
 
 ---
 

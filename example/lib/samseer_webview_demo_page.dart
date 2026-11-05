@@ -49,6 +49,14 @@ class _SamseerWebViewDemoPageState extends State<SamseerWebViewDemoPage> {
   <button onclick="doFetchPost()">fetch POST /posts</button>
   <button onclick="doXhrGet()">XHR GET /users/1</button>
   <button onclick="doFetch404()">fetch GET 404 (error)</button>
+  <button onclick="console.log('plain log from webview')">console.log string</button>
+  <button onclick="console.warn('heads up')">console.warn</button>
+  <button onclick="console.error('something broke')">console.error</button>
+  <button onclick="logObject()">console.log object + array</button>
+  <button onclick="console.log('mixed', 42, true, {k:'v'})">console.log mixed args</button>
+  <button onclick="boom()">throw uncaught error</button>
+  <button onclick="rejectPromise()">unhandled promise rejection</button>
+  <button onclick="doFetchFail()">fetch unreachable host (network error)</button>
 
   <pre id="log">// output will appear here</pre>
 
@@ -86,6 +94,22 @@ class _SamseerWebViewDemoPageState extends State<SamseerWebViewDemoPage> {
     async function doFetch404() {
       var r = await fetch('https://jsonplaceholder.typicode.com/notfound');
       log('fetch 404 → ' + r.status);
+    }
+    function logObject() {
+      console.log('an object:', { id: 1, tags: ['a', 'b'], ok: true }, [10, 20, 30]);
+    }
+    function boom() {
+      throw new Error('deliberate webview error');
+    }
+    function rejectPromise() {
+      Promise.reject(new Error('deliberate rejection'));
+    }
+    async function doFetchFail() {
+      try {
+        await fetch('https://samseer-demo.invalid/ping');
+      } catch (e) {
+        log('fetch failed → ' + e.message);
+      }
     }
   </script>
 </body>
