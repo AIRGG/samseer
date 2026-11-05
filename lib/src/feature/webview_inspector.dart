@@ -106,6 +106,84 @@ const String webViewInterceptorScript = r'''
     }
   }
 
+  function safeStringify(value) {
+    var seen = [];
+    try {
+      return JSON.stringify(value, function (key, val) {
+        if (typeof val === 'function') {
+          return '[Function: ' + (val.name || 'anonymous') + ']';
+        }
+        if (typeof val === 'object' && val !== null) {
+          if (seen.indexOf(val) !== -1) return '[Circular]';
+          seen.push(val);
+        }
+        return val;
+      });
+    } catch (e) {
+      try { return String(value); } catch (_) { return '[Unserializable]'; }
+    }
+  }
+  function describe(value) {
+    if (value === null) return 'null';
+    if (value === undefined) return 'undefined';
+    var t = typeof value;
+    if (t === 'string') return value;
+    if (t === 'number' || t === 'boolean') return String(value);
+    if (t === 'function') return '[Function: ' + (value.name || 'anonymous') + ']';
+    if (typeof Node !== 'undefined' && value instanceof Node) {
+      var nid = value.id ? '#' + value.id : '';
+      return '[' + (value.nodeName || 'Node') + nid + ']';
+    }
+    return safeStringify(value);
+  }
+  function formatArgs(args) {
+    var parts = [];
+    for (var i = 0; i < args.length; i++) parts.push(describe(args[i]));
+    return parts.join(' ');
+  }
+  function collectData(args) {
+    var data = [];
+    for (var i = 0; i < args.length; i++) {
+      var v = args[i];
+      if (v !== null && typeof v === 'object') {
+        try { data.push(JSON.parse(safeStringify(v))); }
+        catch (_) { data.push(String(v)); }
+      }
+    }
+    return data.length ? data : null;
+  }
+  function sendLog(level, args, stack) {
+    send({
+      kind: 'log',
+      level: level,
+      message: formatArgs(args),
+      data: collectData(args),
+      stack: stack || null,
+    });
+  }
+
+  // --- console ---
+  ['log', 'info', 'warn', 'error', 'debug'].forEach(function (level) {
+    var orig = console[level];
+    console[level] = function () {
+      try { sendLog(level, arguments, null); } catch (_) {}
+      if (orig) return orig.apply(console, arguments);
+    };
+  });
+
+  // --- uncaught errors ---
+  window.addEventListener('error', function (e) {
+    var msg = (e && e.message) ? e.message : 'Uncaught error';
+    var stack = (e && e.error && e.error.stack) ? e.error.stack : null;
+    sendLog('error', [msg], stack);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var reason = e && e.reason;
+    var msg = (reason && reason.message) ? reason.message : String(reason);
+    var stack = (reason && reason.stack) ? reason.stack : null;
+    sendLog('error', ['Unhandled rejection: ' + msg], stack);
+  });
+
   // --- XMLHttpRequest ---
   var XHR = window.XMLHttpRequest;
   if (XHR) {
