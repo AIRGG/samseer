@@ -7,7 +7,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-5B6BFF.svg)](#-contribute-with-us)
 [![Sponsor](https://img.shields.io/badge/Sponsor-💜-EA4AAA.svg)](https://github.com/sponsors/samueljiwandono0310)
 
-Samseer captures every HTTP request your Flutter app makes — from **Dio**, the **`http`** package, and **`dart:io` HttpClient** — and presents it in a polished Material 3 inspector you can open with a shake, a tap on a floating bubble, or a single line of code.
+Samseer captures every HTTP request your Flutter app makes (from **Dio**, the **`http`** package, **`dart:io` HttpClient** and WebView pages) plus your app's and WebView's console logs, and presents them in a polished Material 3 inspector you can open with a shake, a tap on a floating bubble, or a single line of code.
 
 If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github.com/jhomlala/chucker_flutter), Samseer is the spiritual successor: **same idea, modern UI, single dependency, no separate adapter packages**.
 
@@ -26,10 +26,11 @@ If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github
 
 ## ✨ Features
 
-- 🎨 **Material 3 UI** with light & dark themes that follow the host app
+- 🎨 **Material 3 UI** with a dark inspector theme, independent of the host app's theme
 - 🔌 **Three HTTP clients out of the box** — Dio, `http`, `dart:io HttpClient` — no extra packages needed for them
 - 🌐 **WebView traffic too** — drop-in JS interceptor for XHR/`fetch` inside `flutter_inappwebview`, no extra dep on Samseer's side
 - 🖥️ **Console capture**: WebView `console.*` and JS errors, plus your Flutter app's `print`/`debugPrint`/uncaught errors, in one filterable Console tab (objects render as readable JSON, not `[object Object]`)
+- 🧭 **Network and Console tabs** in a bottom nav, each with a live count badge
 - 🔍 **Powerful call list** with live search, status & method filters
 - 📑 **Tabbed call detail** — Overview · Request · Response · cURL
 - 🌈 **Content-type-aware body viewer** — syntax-highlighted JSON tree, form-urlencoded & multipart fields tables, pretty-printed XML, CSV grid, and image/PDF/binary previews with a Copy-as-Base64 action
@@ -37,7 +38,7 @@ If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github
 - 💾 **Download .txt for big copies** — copies over 100 KB become a `.txt` saved through the system save dialog (Android "Save to", iOS "Save to Files")
 - 📊 **Stats screen** — totals, success rate, avg duration, status distribution
 - 📱 **Shake-to-open** the inspector from anywhere in your app
-- 💬 **Floating bubble overlay** with live call count (draggable)
+- 💬 **Floating bubble overlay** with a live count of calls plus console entries (draggable)
 - 📤 **Export & share** all calls as JSON, or copy any request as cURL
 - 📋 **One-tap copy** per tab — copy request body, response body, or full URL + method independently
 - 🪶 **Single dependency** — `samseer` and you're done. No `samseer_dio`, `samseer_http` etc.
@@ -49,7 +50,7 @@ If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github
 ```yaml
 # pubspec.yaml
 dependencies:
-  samseer: ^0.1.0
+  samseer: ^0.6.0
 ```
 
 ```dart
@@ -131,7 +132,7 @@ HttpOverrides.global = samseer.httpOverrides;
 
 ### Multiple clients at once
 
-You can use all three integrations simultaneously. Samseer assigns a fresh ID per call so nothing is duplicated.
+You can use all three integrations simultaneously. Note that Dio and the `http` package both create a `dart:io` `HttpClient` under the hood, so with `HttpOverrides.global` installed **and** the Dio interceptor / `samseer.httpClient()`, the same request shows up twice (once per layer, with the client label telling them apart). If you don't want that, pick either the per-client integrations or `HttpOverrides.global`.
 
 ---
 
@@ -320,11 +321,32 @@ Samseer has a **Console** tab (bottom nav, next to Network) that collects:
   }
   ```
 
-  Output still reaches your IDE console, and existing `FlutterError.onError` /
-  `PlatformDispatcher.onError` handlers (e.g. Crashlytics) keep working.
+  Output still reaches your IDE console. `FlutterError.onError` and
+  `PlatformDispatcher.onError` handlers you set **before** `captureLogs` (e.g.
+  Crashlytics) are chained and keep receiving framework and platform errors.
+  Uncaught async errors thrown inside the wrapped zone are recorded and printed,
+  but are not forwarded to `PlatformDispatcher.onError`; report them yourself if
+  your crash reporter relies on that hook.
 
 Filter by level (Log/Info/Warn/Error/Debug) and source (App/WebView). Objects and
-arrays are rendered as readable JSON instead of `[object Object]`.
+arrays are rendered as readable JSON instead of `[object Object]`. Tapping an
+entry opens it in the same virtual-scrolled viewer as response bodies: the
+message, any structured `DATA` as pretty JSON, and the `STACK TRACE`, with Copy
+(or Download .txt above 100 KB).
+
+WebView network errors (failed XHR/`fetch`) are mirrored into the Console as
+error entries; turn that off with `captureNetworkErrorsInConsole: false`.
+
+### Large bodies
+
+Request, Response, cURL and Console entry views render bodies as numbered,
+lazily built lines, so a multi-MB JSON response opens instantly and scrolls
+smoothly (with a draggable scrollbar). The text on screen is exactly what Copy
+produces: line N in the viewer is line N of the copied or downloaded text.
+
+Any copy larger than **100 KB** (body, cURL, the call dump, or "Copy as JSON")
+becomes **Download .txt** through the system save dialog: Android shows its
+"Save to" screen, iOS shows "Save to Files".
 
 ---
 
@@ -344,6 +366,8 @@ final samseer = Samseer(
 | Option | Default | Description |
 |---|---|---|
 | `maxCallsCount` | `1000` | Older calls are evicted FIFO once the limit is hit |
+| `maxConsoleLogsCount` | `500` | Older console entries are evicted FIFO once the limit is hit |
+| `captureNetworkErrorsInConsole` | `true` | Mirror WebView network errors into the Console as error entries |
 | `showInspectorOnShake` | `true` | Shake the device to open the inspector |
 | `showFloatingBubble` | `false` | Set to `true` and wrap with `samseer.overlay(...)` |
 | `shakeThreshold` | `20` (m/s²) | Higher value = harder shake required |
@@ -366,7 +390,7 @@ final samseer = Samseer(
 Why switch?
 
 - 🪄 **Single dependency** instead of 3-5 separate adapter packages.
-- 🎨 **Modern Material 3 UI** with proper light/dark mode and Google Fonts typography.
+- 🎨 **Modern Material 3 UI** with a dark inspector theme and Google Fonts typography.
 - 📑 **Tabbed call detail** with built-in JSON syntax highlighting and one-tap cURL copy.
 - 💬 **Floating bubble** as a more ergonomic alternative to system notifications.
 
@@ -382,6 +406,18 @@ flutter run
 ```
 
 Tap any of the buttons to fire requests — they'll appear in the inspector live.
+On iOS the example targets iOS 14.0 (required by `file_picker`).
+
+Other sections worth trying:
+
+- **Dio → `GET /comments (~160 KB, Download)` and `GET /photos (~1 MB)`**: large
+  JSON responses for the virtual-scrolled Response tab and the Download .txt
+  action.
+- **Console (App logs)**: `print()`, `debugPrint()`, a `Map`, and an uncaught
+  async error, captured through `samseer.captureLogs`.
+- **WebView → Open WebView demo**: buttons for `console.log` / `warn` /
+  `error`, objects and arrays, a thrown error, an unhandled rejection, and a
+  fetch to an unreachable host (mirrored into the Console as a network error).
 
 The **Content types** section is dedicated to exercising the body viewer/exporter
 against every content type Samseer handles specially:
@@ -414,11 +450,13 @@ Request tab is populated.
 
 ## 📦 What's included vs not (yet)
 
-✅ **Included in 0.1.x**
+✅ **Included in 0.6.x**
 
-- Dio + `http` + `HttpClient` interception
-- Material 3 inspector UI (list, detail, stats)
-- JSON viewer, cURL export, file export
+- Dio + `http` + `HttpClient` interception, plus WebView XHR/`fetch` via an injected script
+- Console tab for WebView `console.*` / JS errors and Dart `print` / uncaught errors (`captureLogs`)
+- Material 3 inspector UI (Network and Console tabs, call detail, stats)
+- Content-type-aware body viewers, virtual-scrolled for large bodies
+- cURL export, JSON export, copy or Download .txt (over 100 KB)
 - Shake detection, floating bubble
 - In-memory storage with FIFO eviction
 
