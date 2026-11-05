@@ -90,6 +90,15 @@ void main() {
     await tester.runAsync(() => loadBodyDocument(owner, slot, build));
   }
 
+  // Lets the real event loop deliver completed isolate results to the
+  // FutureBuilder, then rebuilds.
+  Future<void> settle(WidgetTester tester) async {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump();
+  }
+
   Future<void> openTab(WidgetTester tester, int callId, String tab) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -100,6 +109,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
+    await settle(tester);
   }
 
   testWidgets('large json response renders lazily', (tester) async {
@@ -160,6 +170,7 @@ void main() {
     core.addResponse(call.id, response);
     await tester.pump();
     await tester.pump();
+    await settle(tester);
 
     expect(
       find.descendant(

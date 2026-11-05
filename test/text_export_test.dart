@@ -138,7 +138,7 @@ void main() {
   testWidgets('loading document disables the button', (tester) async {
     await pump(tester, null);
     final button = tester.widget<ButtonStyleButton>(
-      find.byType(ButtonStyleButton),
+      find.bySubtype<ButtonStyleButton>(),
     );
     expect(button.onPressed, isNull);
     expect(find.text('Copy body'), findsOneWidget);
