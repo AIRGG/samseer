@@ -87,7 +87,7 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-**Requirements:** Flutter `>=3.38.0` (Dart `^3.10.0`). Samseer depends on `file_picker` for the "Download .txt" action. Android and iOS need no extra setup. A sandboxed macOS app needs this entitlement (in both `DebugProfile.entitlements` and `Release.entitlements`):
+**Requirements:** Flutter `>=3.38.0` (Dart `^3.10.0`). Samseer depends on `file_picker` for the "Download .txt" action, which needs **iOS 14.0 or newer**: set `platform :ios, '14.0'` in `ios/Podfile` and `IPHONEOS_DEPLOYMENT_TARGET = 14.0` in Xcode, otherwise `pod install` fails. Android needs no extra setup. A sandboxed macOS app needs this entitlement (in both `DebugProfile.entitlements` and `Release.entitlements`):
 
 ```xml
 <key>com.apple.security.files.user-selected.read-write</key>
