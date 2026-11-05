@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../feature/shake_detector.dart';
+import '../model/console_log.dart';
 import '../model/http_call.dart';
 import '../model/http_error.dart';
 import '../model/http_request.dart';
@@ -13,7 +14,10 @@ import 'samseer_storage.dart';
 class SamseerCore {
   SamseerCore({SamseerConfiguration? configuration})
       : configuration = configuration ?? const SamseerConfiguration() {
-    storage = SamseerStorage(maxCallsCount: this.configuration.maxCallsCount);
+    storage = SamseerStorage(
+      maxCallsCount: this.configuration.maxCallsCount,
+      maxConsoleLogsCount: this.configuration.maxConsoleLogsCount,
+    );
     if (this.configuration.showInspectorOnShake) {
       _shakeDetector = ShakeDetector(
         threshold: this.configuration.shakeThreshold,
@@ -50,6 +54,8 @@ class SamseerCore {
 
   void addError(int id, SamseerHttpError error) =>
       storage.updateError(id, error);
+
+  void addConsoleLog(SamseerConsoleLog log) => storage.addConsoleLog(log);
 
   /// Open the inspector. Requires that [navigatorKey] is attached to the
   /// host [MaterialApp.navigatorKey].

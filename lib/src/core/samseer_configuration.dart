@@ -8,6 +8,8 @@ class SamseerConfiguration {
     this.showFloatingBubble = false,
     this.directionality,
     this.shakeThreshold = 20,
+    this.maxConsoleLogsCount = 500,
+    this.captureNetworkErrorsInConsole = true,
   });
 
   /// Max number of HTTP calls to keep in memory. Older calls are evicted FIFO.
@@ -26,12 +28,22 @@ class SamseerConfiguration {
   /// shake required.
   final double shakeThreshold;
 
+  /// Max number of console log entries to keep in memory. Older entries are
+  /// evicted FIFO.
+  final int maxConsoleLogsCount;
+
+  /// Whether WebView/network errors are also surfaced as error-level entries
+  /// in the Console. Successful (2xx/3xx) responses are never echoed.
+  final bool captureNetworkErrorsInConsole;
+
   SamseerConfiguration copyWith({
     int? maxCallsCount,
     bool? showInspectorOnShake,
     bool? showFloatingBubble,
     TextDirection? directionality,
     double? shakeThreshold,
+    int? maxConsoleLogsCount,
+    bool? captureNetworkErrorsInConsole,
   }) {
     return SamseerConfiguration(
       maxCallsCount: maxCallsCount ?? this.maxCallsCount,
@@ -39,6 +51,9 @@ class SamseerConfiguration {
       showFloatingBubble: showFloatingBubble ?? this.showFloatingBubble,
       directionality: directionality ?? this.directionality,
       shakeThreshold: shakeThreshold ?? this.shakeThreshold,
+      maxConsoleLogsCount: maxConsoleLogsCount ?? this.maxConsoleLogsCount,
+      captureNetworkErrorsInConsole:
+          captureNetworkErrorsInConsole ?? this.captureNetworkErrorsInConsole,
     );
   }
 }

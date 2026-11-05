@@ -14,6 +14,7 @@ import 'src/feature/webview_inspector.dart';
 import 'src/interceptor/dio_interceptor.dart';
 import 'src/interceptor/http_client.dart';
 import 'src/interceptor/http_overrides.dart';
+import 'src/model/console_log.dart';
 import 'src/model/http_call.dart';
 import 'src/model/http_error.dart';
 import 'src/model/http_request.dart';
@@ -25,6 +26,8 @@ export 'src/feature/webview_inspector.dart' show webViewInterceptorScript;
 export 'src/interceptor/dio_interceptor.dart' show SamseerDioInterceptor;
 export 'src/interceptor/http_client.dart' show SamseerHttpClient;
 export 'src/interceptor/http_overrides.dart' show SamseerHttpOverrides;
+export 'src/model/console_log.dart'
+    show SamseerConsoleLog, SamseerLogLevel, SamseerLogSource;
 export 'src/model/content_kind.dart'
     show SamseerBodyKind, classifyContentType, isBinaryBodyKind;
 export 'src/model/http_body.dart'
