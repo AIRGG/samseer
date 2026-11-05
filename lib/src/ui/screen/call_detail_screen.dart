@@ -41,9 +41,7 @@ class CallDetailScreen extends StatelessWidget {
                     MethodBadge(method: call.method),
                     const SizedBox(width: 8),
                     StatusBadge(
-                      call: call,
-                      heroTag: 'samseer.status.${call.id}',
-                    ),
+                        call: call, heroTag: 'samseer.status.${call.id}'),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -159,10 +157,7 @@ class _OverviewTab extends StatelessWidget {
     };
     return ListView(
       children: [
-        _Section(
-          title: 'Summary',
-          child: KeyValueTable(entries: entries),
-        ),
+        _Section(title: 'Summary', child: KeyValueTable(entries: entries)),
         if (call.error != null)
           _Section(
             title: 'Error',
@@ -172,10 +167,8 @@ class _OverviewTab extends StatelessWidget {
                 call.error?.message ??
                     call.error?.error?.toString() ??
                     'Unknown error',
-                style: SamseerTheme.mono(
-                  context,
-                  color: const Color(0xFFEF4444),
-                ),
+                style:
+                    SamseerTheme.mono(context, color: const Color(0xFFEF4444)),
               ),
             ),
           ),

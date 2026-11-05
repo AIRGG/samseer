@@ -196,19 +196,17 @@ class _NetworkViewState extends State<_NetworkView> {
       }).toList();
     }
     result = result
-        .where(
-          (c) => switch (_filter) {
-            _StatusFilter.all => true,
-            _StatusFilter.success => c.state == SamseerCallState.success,
-            _StatusFilter.redirect => c.state == SamseerCallState.redirect,
-            _StatusFilter.clientError =>
-              c.state == SamseerCallState.clientError,
-            _StatusFilter.serverError =>
-              c.state == SamseerCallState.serverError,
-            _StatusFilter.errors =>
-              c.state == SamseerCallState.error || c.hasError,
-          },
-        )
+        .where((c) => switch (_filter) {
+              _StatusFilter.all => true,
+              _StatusFilter.success => c.state == SamseerCallState.success,
+              _StatusFilter.redirect => c.state == SamseerCallState.redirect,
+              _StatusFilter.clientError =>
+                c.state == SamseerCallState.clientError,
+              _StatusFilter.serverError =>
+                c.state == SamseerCallState.serverError,
+              _StatusFilter.errors =>
+                c.state == SamseerCallState.error || c.hasError,
+            })
         .toList();
     return result;
   }
@@ -235,15 +233,11 @@ class _AnimatedTileState extends State<_AnimatedTile>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    final curve = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    );
+    final curve =
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
     _fade = Tween<double>(begin: 0, end: 1).animate(curve);
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(curve);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(curve);
     _controller.forward();
   }
 

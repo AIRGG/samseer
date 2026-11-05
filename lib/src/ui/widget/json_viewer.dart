@@ -59,48 +59,26 @@ class _Tree extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final color = SamseerSyntaxColors(cs);
     if (value is Map) {
-      spans.add(
-        TextSpan(
-          text: '{\n',
-          style: TextStyle(color: color.bracket),
-        ),
-      );
+      spans.add(TextSpan(text: '{\n', style: TextStyle(color: color.bracket)));
       final entries = value.entries.toList();
       for (var i = 0; i < entries.length; i++) {
         final e = entries[i];
         final last = i == entries.length - 1;
         spans
           ..add(TextSpan(text: _indent(depth + 1)))
-          ..add(
-            TextSpan(
-              text: '"${e.key}"',
-              style: TextStyle(color: color.key, fontWeight: FontWeight.w600),
-            ),
-          )
-          ..add(
-            TextSpan(
-              text: ': ',
-              style: TextStyle(color: color.punct),
-            ),
-          )
+          ..add(TextSpan(
+            text: '"${e.key}"',
+            style: TextStyle(color: color.key, fontWeight: FontWeight.w600),
+          ))
+          ..add(TextSpan(text: ': ', style: TextStyle(color: color.punct)))
           ..addAll(_build(context, e.value, depth + 1, isLast: last))
           ..add(TextSpan(text: last ? '\n' : ',\n'));
       }
       spans
         ..add(TextSpan(text: _indent(depth)))
-        ..add(
-          TextSpan(
-            text: '}',
-            style: TextStyle(color: color.bracket),
-          ),
-        );
+        ..add(TextSpan(text: '}', style: TextStyle(color: color.bracket)));
     } else if (value is List) {
-      spans.add(
-        TextSpan(
-          text: '[\n',
-          style: TextStyle(color: color.bracket),
-        ),
-      );
+      spans.add(TextSpan(text: '[\n', style: TextStyle(color: color.bracket)));
       for (var i = 0; i < value.length; i++) {
         final last = i == value.length - 1;
         spans
@@ -110,40 +88,20 @@ class _Tree extends StatelessWidget {
       }
       spans
         ..add(TextSpan(text: _indent(depth)))
-        ..add(
-          TextSpan(
-            text: ']',
-            style: TextStyle(color: color.bracket),
-          ),
-        );
+        ..add(TextSpan(text: ']', style: TextStyle(color: color.bracket)));
     } else if (value is String) {
-      spans.add(
-        TextSpan(
-          text: '"${value.replaceAll('\n', '\\n')}"',
-          style: TextStyle(color: color.string),
-        ),
-      );
+      spans.add(TextSpan(
+        text: '"${value.replaceAll('\n', '\\n')}"',
+        style: TextStyle(color: color.string),
+      ));
     } else if (value is num) {
-      spans.add(
-        TextSpan(
-          text: '$value',
-          style: TextStyle(color: color.number),
-        ),
-      );
+      spans
+          .add(TextSpan(text: '$value', style: TextStyle(color: color.number)));
     } else if (value is bool) {
-      spans.add(
-        TextSpan(
-          text: '$value',
-          style: TextStyle(color: color.bool),
-        ),
-      );
+      spans.add(TextSpan(text: '$value', style: TextStyle(color: color.bool)));
     } else if (value == null) {
       spans.add(
-        TextSpan(
-          text: 'null',
-          style: TextStyle(color: color.nullValue),
-        ),
-      );
+          TextSpan(text: 'null', style: TextStyle(color: color.nullValue)));
     } else {
       spans.add(TextSpan(text: value.toString()));
     }
@@ -156,13 +114,13 @@ class _Tree extends StatelessWidget {
 /// JSON token colors shared by [JsonViewer] and the virtualized body view.
 class SamseerSyntaxColors {
   SamseerSyntaxColors(ColorScheme cs)
-    : key = cs.primary,
-      string = const Color(0xFF22C55E),
-      number = const Color(0xFFF59E0B),
-      bool = const Color(0xFFEC4899),
-      nullValue = cs.onSurfaceVariant,
-      bracket = cs.onSurface,
-      punct = cs.onSurfaceVariant;
+      : key = cs.primary,
+        string = const Color(0xFF22C55E),
+        number = const Color(0xFFF59E0B),
+        bool = const Color(0xFFEC4899),
+        nullValue = cs.onSurfaceVariant,
+        bracket = cs.onSurface,
+        punct = cs.onSurfaceVariant;
 
   final Color key;
   final Color string;

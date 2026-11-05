@@ -64,8 +64,8 @@ class Exporter {
       if (response.body != null) {
         b
           ..writeln('Body:')
-          ..writeln(
-              formatBody(response.body, contentType: response.contentType));
+          ..writeln(formatBody(response.body,
+              contentType: response.contentType));
       }
       b.writeln();
     } else {
@@ -110,8 +110,8 @@ class Exporter {
       });
       for (final f in body.files) {
         final type = f.contentType != null ? ';type=${f.contentType}' : '';
-        buffer.write(
-            " -F '${_escape('${f.field}=@${f.filename ?? 'file'}$type')}'");
+        buffer
+            .write(" -F '${_escape('${f.field}=@${f.filename ?? 'file'}$type')}'");
       }
     } else if (body is SamseerBinaryBody) {
       buffer.write(
