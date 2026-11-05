@@ -26,11 +26,13 @@ to copy, he wants it saved as a plain `.txt` file instead.
    - body text ≤ **100 KB** (decided by Airlangga): the existing **Copy** button
      works as today.
    - body text > 100 KB: the Copy button is replaced by **Download .txt**.
-4. Download .txt saves the exact text Copy would have produced:
-   - **Android**: written straight into the public **Downloads** folder, then a
-     `SamseerToast` with the file name.
-   - **iOS**: there is no Downloads folder, so the system "Save to Files" dialog
-     opens and the user picks the place.
+4. Download .txt saves the exact text Copy would have produced, through the
+   system save dialog (decided by Airlangga, see Decisions):
+   - **Android**: the system "save to" screen opens; the user picks Downloads
+     (Android usually remembers the last folder) and taps Save.
+   - **iOS**: the system "Save to Files" dialog opens and the user picks the place.
+   - Then a `SamseerToast` confirms with the file name. Cancelling the dialog
+     does nothing (no error toast).
 5. Works for both request and response bodies; the response is the main case.
 
 ## Non-goals
@@ -60,6 +62,13 @@ Airlangga decided:
   pattern), so Download works without any setup in the host app. This is a new
   dependency in a package that advertises "no extra packages", so the README and
   CHANGELOG must say so.
+- That package is **`file_picker` (`FilePicker.saveFile`, system save dialog)**.
+  Saving straight into Android Downloads without a dialog was dropped: the only
+  package doing that (`file_saver` `saveToDownloads`, 0.6.0+) needs Flutter
+  3.44, which would force every Samseer user (and this Mac, on 3.41.6) to
+  upgrade. `file_picker` 13.x needs Flutter >=3.38 / Dart >=3.10; Samseer's
+  real floor is already Flutter 3.35 via `google_fonts`, so the declared
+  environment rises to `sdk: ^3.10.0`, `flutter: ">=3.38.0"`.
 
 Claude's calls (can be overridden):
 - Virtual scroll applies to every body rendered as text: JSON, XML,
@@ -90,27 +99,22 @@ Claude's calls (can be overridden):
   request body) in one `SelectableText` and would crash the same way. It uses
   the same virtualized viewer as plain text (no JSON coloring), built off the
   UI thread for big bodies.
-- **Android 9 and below** (no MediaStore): no extra permission is asked of the
-  host app. The file is saved to the app-specific external files folder
-  instead, and the toast shows that path. Android 10+ saves to public
-  Downloads as in the goals.
+- No storage permission is needed on any Android version: the system save
+  dialog (Storage Access Framework) grants access to the chosen file.
 
 ## Constraints
 
-- Dart/Flutter package, `sdk: ^3.5.0`, `flutter: ">=3.19.0"`, Material 3,
+- Dart/Flutter package, environment raised to `sdk: ^3.10.0`,
+  `flutter: ">=3.38.0"` (for `file_picker`), Material 3,
   dark-mode inspector only (`SamseerTheme`).
 - Follow existing patterns: `SamseerToast` for feedback, `Exporter` for building
   the text, `SamseerTheme.mono` for monospace.
-- Android: saving to Downloads on Android 10+ needs MediaStore (or the package
-  that wraps it); must not require the host app to add storage permissions on
-  modern Android if avoidable. Document any manifest/Info.plist step the chosen
-  package needs, both in README and in the example app.
+- Document any manifest/Info.plist step `file_picker`'s save dialog needs, both
+  in README and in the example app.
 - Tests on this machine: one full `flutter test --concurrency=1` at the end.
 
 ## Left to the builder
 
-- Which file-saving package (must support Android Downloads + iOS save dialog,
-  maintained, compatible with the SDK floors above).
 - How lines are produced (pretty-print to lines, then color each line) and
   whether that runs in an isolate (`compute`) for big bodies, with a short
   loading state.
