@@ -116,6 +116,16 @@ class Home extends StatelessWidget {
               ),
             ),
             _Tile(
+              label: 'GET /comments (~160 KB, Download)',
+              onTap: () =>
+                  dio.get('https://jsonplaceholder.typicode.com/comments'),
+            ),
+            _Tile(
+              label: 'GET /photos (~1 MB)',
+              onTap: () =>
+                  dio.get('https://jsonplaceholder.typicode.com/photos'),
+            ),
+            _Tile(
               label: 'GET 404',
               onTap: () => dio
                   .get('https://jsonplaceholder.typicode.com/notfound')

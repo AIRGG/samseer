@@ -27,12 +27,14 @@ If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github
 ## ✨ Features
 
 - 🎨 **Material 3 UI** with light & dark themes that follow the host app
-- 🔌 **Three HTTP clients out of the box** — Dio, `http`, `dart:io HttpClient` — no extra packages
+- 🔌 **Three HTTP clients out of the box** — Dio, `http`, `dart:io HttpClient` — no extra packages needed for them
 - 🌐 **WebView traffic too** — drop-in JS interceptor for XHR/`fetch` inside `flutter_inappwebview`, no extra dep on Samseer's side
 - 🖥️ **Console capture**: WebView `console.*` and JS errors, plus your Flutter app's `print`/`debugPrint`/uncaught errors, in one filterable Console tab (objects render as readable JSON, not `[object Object]`)
 - 🔍 **Powerful call list** with live search, status & method filters
 - 📑 **Tabbed call detail** — Overview · Request · Response · cURL
 - 🌈 **Content-type-aware body viewer** — syntax-highlighted JSON tree, form-urlencoded & multipart fields tables, pretty-printed XML, CSV grid, and image/PDF/binary previews with a Copy-as-Base64 action
+- 🚀 **Huge bodies stay smooth** — request, response and cURL bodies are virtual-scrolled with line numbers, so multi-MB JSON opens without freezing
+- 💾 **Download .txt for big copies** — copies over 100 KB become a `.txt` saved through the system save dialog (Android "Save to", iOS "Save to Files")
 - 📊 **Stats screen** — totals, success rate, avg duration, status distribution
 - 📱 **Shake-to-open** the inspector from anywhere in your app
 - 💬 **Floating bubble overlay** with live call count (draggable)
@@ -83,6 +85,13 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+```
+
+**Requirements:** Flutter `>=3.38.0` (Dart `^3.10.0`). Samseer depends on `file_picker` for the "Download .txt" action. Android and iOS need no extra setup. A sandboxed macOS app needs this entitlement (in both `DebugProfile.entitlements` and `Release.entitlements`):
+
+```xml
+<key>com.apple.security.files.user-selected.read-write</key>
+<true/>
 ```
 
 That's it. Shake your phone or call `samseer.showInspector()` to open the inspector.
