@@ -117,7 +117,7 @@ class _ConsoleViewState extends State<ConsoleView> {
                       builder: (_) => ConsoleDetailScreen(
                         log: logs[i],
                         copyLimitBytes:
-                            widget.core.configuration.copyLimitBytes,
+                            widget.core.configuration.effectiveCopyLimitBytes,
                       ),
                     ),
                   ),

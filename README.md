@@ -35,7 +35,7 @@ If you've used [Alice](https://pub.dev/packages/alice) or [Chuck](https://github
 - 📑 **Tabbed call detail** — Overview · Request · Response · cURL
 - 🌈 **Content-type-aware body viewer** — syntax-highlighted JSON tree, form-urlencoded & multipart fields tables, pretty-printed XML, CSV grid, and image/PDF/binary previews with a Copy-as-Base64 action
 - 🚀 **Huge bodies stay smooth** — request, response and cURL bodies are virtual-scrolled with line numbers, so multi-MB JSON opens without freezing
-- 💾 **Download .txt for big copies** — copies over 100 KB become a `.txt` saved through the system save dialog (Android "Save to", iOS "Save to Files")
+- 💾 **Download .txt for big copies** — give Samseer an `onSaveFile` callback and copies over 100 KB are saved as a `.txt` through it; without one everything is copied
 - 📊 **Stats screen** — totals, success rate, avg duration, status distribution
 - 📱 **Shake-to-open** the inspector from anywhere in your app
 - 💬 **Floating bubble overlay** with a live count of calls plus console entries (draggable)
@@ -88,12 +88,7 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-**Requirements:** Flutter `>=3.38.0` (Dart `^3.10.0`). Samseer depends on `file_picker` for the "Download .txt" action, which needs **iOS 14.0 or newer**: set `platform :ios, '14.0'` in `ios/Podfile` and `IPHONEOS_DEPLOYMENT_TARGET = 14.0` in Xcode, otherwise `pod install` fails. Android needs no extra setup. A sandboxed macOS app needs this entitlement (in both `DebugProfile.entitlements` and `Release.entitlements`):
-
-```xml
-<key>com.apple.security.files.user-selected.read-write</key>
-<true/>
-```
+**Requirements:** Flutter `>=3.38.0` (Dart `^3.10.0`). No platform setup needed.
 
 That's it. Shake your phone or call `samseer.showInspector()` to open the inspector.
 
@@ -344,18 +339,31 @@ lazily built lines, so a multi-MB JSON response opens instantly and scrolls
 smoothly (with a draggable scrollbar). The text on screen is exactly what Copy
 produces: line N in the viewer is line N of the copied or downloaded text.
 
-Any copy larger than **100 KB** (body, cURL, the call dump, "Copy as JSON", or a
-console entry) becomes **Download .txt** through the system save dialog:
-Android shows its "Save to" screen, iOS shows "Save to Files". Change the limit
-with `copyLimitBytes`:
+Copies are sent to the clipboard. To save large text as a file instead, pass
+`onSaveFile`: Samseer has no file dialog of its own, so you provide one (share
+sheet, file picker, ...). With it, any copy larger than **100 KB** (body, cURL,
+the call dump, "Copy as JSON", or a console entry) becomes **Download .txt**.
+Change the limit with `copyLimitBytes`:
 
 ```dart
 final samseer = Samseer(
-  configuration: const SamseerConfiguration(
-    copyLimitBytes: 512 * 1024, // copy up to 512 KB, download above
+  configuration: SamseerConfiguration(
+    copyLimitBytes: 512 * 1024, // copy up to 512 KB, save above
+    onSaveFile: (fileName, bytes) async {
+      final file = File('${(await getTemporaryDirectory()).path}/$fileName');
+      await file.writeAsBytes(bytes);
+      final result = await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)]),
+      );
+      return result.status == ShareResultStatus.success;
+    },
   ),
 );
 ```
+
+The example above uses `path_provider` and `share_plus` from your own app;
+Samseer does not depend on either. Return `true` when saved, `false` when the
+user cancelled.
 
 ---
 
@@ -377,7 +385,8 @@ final samseer = Samseer(
 | `maxCallsCount` | `1000` | Older calls are evicted FIFO once the limit is hit |
 | `maxConsoleLogsCount` | `500` | Older console entries are evicted FIFO once the limit is hit |
 | `captureNetworkErrorsInConsole` | `true` | Mirror WebView network errors into the Console as error entries |
-| `copyLimitBytes` | `102400` (100 KB) | Copy actions copy up to this many UTF-8 bytes; above it they offer Download .txt. `0` always downloads |
+| `copyLimitBytes` | `102400` (100 KB) | With `onSaveFile` set, copy actions copy up to this many UTF-8 bytes and offer Download .txt above it. `0` always downloads. Ignored without `onSaveFile` |
+| `onSaveFile` | `null` | `Future<bool> Function(String fileName, Uint8List bytes)` that saves large text; `null` copies everything to the clipboard |
 | `showInspectorOnShake` | `true` | Shake the device to open the inspector |
 | `showFloatingBubble` | `false` | Set to `true` and wrap with `samseer.overlay(...)` |
 | `shakeThreshold` | `20` (m/s²) | Higher value = harder shake required |
@@ -416,7 +425,7 @@ flutter run
 ```
 
 Tap any of the buttons to fire requests — they'll appear in the inspector live.
-On iOS the example targets iOS 14.0 (required by `file_picker`).
+The example does not set `onSaveFile`, so large copies go to the clipboard.
 
 Other sections worth trying:
 

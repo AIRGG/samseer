@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/samseer_configuration.dart' show SamseerFileSaver;
 import '../ui/widget/samseer_toast.dart';
 import 'exporter.dart';
 
@@ -46,26 +46,16 @@ String buildExportFileName({
   return '${parts.join('-')}.txt';
 }
 
-/// Saves bytes through a save dialog. True = saved, false = cancelled.
-typedef TextFileSaver = Future<bool> Function(String fileName, Uint8List bytes);
-
+/// Replaced by `SamseerConfiguration.onSaveFile` when a [Samseer] is created
+/// (and in tests). `null` means large text is copied like small text.
 class SamseerTextExport {
   SamseerTextExport._();
 
-  /// Replaceable in tests.
-  static TextFileSaver saver = _filePickerSaver;
+  static SamseerFileSaver? saver;
 }
 
-Future<bool> _filePickerSaver(String fileName, Uint8List bytes) async {
-  final uri = await FilePicker.saveFile(
-    fileName: fileName,
-    bytes: bytes,
-    mimeType: 'text/plain',
-  );
-  return uri != null;
-}
-
-/// Copies [text] when small enough, otherwise saves it as a .txt file.
+/// Copies [text] when small enough or when no [SamseerTextExport.saver] is
+/// set, otherwise saves it as a .txt file.
 Future<void> copyOrDownloadText(
   BuildContext context, {
   required String text,
@@ -74,7 +64,9 @@ Future<void> copyOrDownloadText(
   int limitBytes = kCopyLimitBytes,
 }) async {
   final bytes = Uint8List.fromList(utf8.encode(text));
-  if (!exceedsCopyLimit(bytes.length, limitBytes: limitBytes)) {
+  final saver = SamseerTextExport.saver;
+  if (saver == null ||
+      !exceedsCopyLimit(bytes.length, limitBytes: limitBytes)) {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     SamseerToast.show(
@@ -87,7 +79,7 @@ Future<void> copyOrDownloadText(
   }
 
   try {
-    final saved = await SamseerTextExport.saver(fileName, bytes);
+    final saved = await saver(fileName, bytes);
     if (!saved || !context.mounted) return;
     SamseerToast.show(
       context,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../feature/shake_detector.dart';
+import '../feature/text_export.dart';
 import '../model/console_log.dart';
 import '../model/http_call.dart';
 import '../model/http_error.dart';
@@ -14,6 +15,7 @@ import 'samseer_storage.dart';
 class SamseerCore {
   SamseerCore({SamseerConfiguration? configuration})
       : configuration = configuration ?? const SamseerConfiguration() {
+    SamseerTextExport.saver = this.configuration.onSaveFile;
     storage = SamseerStorage(
       maxCallsCount: this.configuration.maxCallsCount,
       maxConsoleLogsCount: this.configuration.maxConsoleLogsCount,

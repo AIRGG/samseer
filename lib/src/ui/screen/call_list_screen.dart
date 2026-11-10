@@ -132,7 +132,7 @@ class _CallListScreenState extends State<CallListScreen> {
           text: Exporter.buildJsonExport(calls),
           fileName: buildExportFileName(part: 'calls', time: DateTime.now()),
           copiedTitle: 'JSON export copied',
-          limitBytes: widget.core.configuration.copyLimitBytes,
+          limitBytes: widget.core.configuration.effectiveCopyLimitBytes,
         );
       case 'clear':
         widget.core.storage.clear();

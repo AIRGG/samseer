@@ -10,9 +10,9 @@
   of `[object Object]`.
 * New: `SamseerConfiguration.maxConsoleLogsCount` (default 500).
 * New: request, response and cURL bodies are virtual-scrolled with line numbers, so multi-MB JSON opens without freezing or crashing.
-* New: copies over 100 KB become "Download .txt" through the system save dialog (Android "Save to", iOS "Save to Files").
+* New: `SamseerConfiguration.onSaveFile`. When set, copies over 100 KB become "Download .txt" through a saver you provide (share sheet, file picker, ...). Without it every copy goes to the clipboard, as before.
 * New: `SamseerConfiguration.copyLimitBytes` (default 100 KB) sets that copy limit.
-* Changed: adds the `file_picker` dependency; minimum Flutter is now 3.38 (Dart 3.10) and minimum iOS deployment target is 14.0.
+* Changed: minimum Flutter is now 3.38 (Dart 3.10). No new dependencies.
 
 ## 0.5.0
 

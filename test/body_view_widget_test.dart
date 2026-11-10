@@ -41,7 +41,10 @@ void main() {
 
   setUp(() {
     core = SamseerCore(
-      configuration: const SamseerConfiguration(showInspectorOnShake: false),
+      configuration: SamseerConfiguration(
+        showInspectorOnShake: false,
+        onSaveFile: (name, bytes) async => true,
+      ),
     );
   });
 

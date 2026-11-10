@@ -29,7 +29,7 @@ class CallDetailScreen extends StatelessWidget {
           (c) => c.id == callId,
           orElse: () => core.storage.findById(callId)!,
         );
-        final limit = core.configuration.copyLimitBytes;
+        final limit = core.configuration.effectiveCopyLimitBytes;
         return DefaultTabController(
           length: 4,
           child: Theme(
@@ -97,7 +97,7 @@ class CallDetailScreen extends StatelessWidget {
         time: call.createdAt,
       ),
       copiedTitle: 'Request & response copied',
-      limitBytes: core.configuration.copyLimitBytes,
+      limitBytes: core.configuration.effectiveCopyLimitBytes,
     );
   }
 }

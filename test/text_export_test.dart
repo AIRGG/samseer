@@ -117,6 +117,27 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
   });
 
+  testWidgets('large body is copied when no saver is configured', (
+    tester,
+  ) async {
+    SamseerTextExport.saver = null;
+    final text = 'a' * 102401;
+    await pump(tester, _doc(text), limitBytes: kCopyLimitBytes);
+    await tester.tap(find.textContaining('Download .txt'));
+    await tester.pump();
+    await tester.pump();
+    expect(clipboard, [text]);
+    expect(saved, isEmpty);
+    await tester.pump(const Duration(seconds: 4));
+  });
+
+  test('effective copy limit is unlimited without onSaveFile', () {
+    const plain = SamseerConfiguration(copyLimitBytes: 5);
+    expect(plain.effectiveCopyLimitBytes, greaterThan(1 << 40));
+    final withSaver = plain.copyWith(onSaveFile: (n, b) async => true);
+    expect(withSaver.effectiveCopyLimitBytes, 5);
+  });
+
   testWidgets('large body downloads', (tester) async {
     final text = 'a' * 102401;
     Uint8List? gotBytes;
